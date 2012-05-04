@@ -126,4 +126,34 @@
     ##self.rawSpectrum.mask[:,0:2] = True
     ##self.rawSpectrum.mask[:,self.co["noH"]-1:] = True
 
+  def _getBorderPeaks(self,spectrumFlat,joinedMask):
+    '''
+    find all spectra with signal at the borders
+    '''
+    foldingCandidatesLeft = (joinedMask[...,0] == False)
+    foldingCandidatesRight = (joinedMask[...,-1] == False)
     
+    
+    if np.any(foldingCandidatesLeft):
+      
+      #the getPeakDescendingAve function needs a list of maxima, so give it the right border
+      second_iMaxLeft= np.array([spectrumFlat.shape[1]-1]*np.sum(foldingCandidatesLeft))
+      
+      #get the additional mask, the already found peak is masked out and not treated!
+      additionalMaskLeft = self._getPeakDescendingAve(np.ma.masked_array(spectrumFlat[foldingCandidatesLeft],~joinedMask[foldingCandidatesLeft]),second_iMaxLeft)
+      #cancel additional peak which are only one bin wide!
+      additionalMaskLeft[np.sum(~additionalMaskLeft,axis=-1)<=1] = True
+      #add the additional mask to exisiting one
+      joinedMask[foldingCandidatesLeft] = joinedMask[foldingCandidatesLeft] * additionalMaskLeft
+      
+    if np.any(foldingCandidatesRight):  
+      #same for the otehr border
+      second_iMaxRight= np.array([0]*np.sum(foldingCandidatesRight))
+
+      
+      additionalMaskRight =self._getPeakDescendingAve(np.ma.masked_array(spectrumFlat[foldingCandidatesRight],~joinedMask[foldingCandidatesRight]),second_iMaxRight)
+      additionalMaskRight[np.sum(~additionalMaskRight,axis=-1)<=1] = True
+      
+      joinedMask[foldingCandidatesRight] = joinedMask[foldingCandidatesRight] * additionalMaskRight
+   
+    return joinedMask    

@@ -150,7 +150,7 @@ class MrrZe:
     #if the height averaged velocity between to timesteps is larger than this, it is tried to refold the spectrum
     self.co["dealiaseSpectrum_makeCoherenceTest_velocityThreshold"] = 8 
     #if there are after coherence test still velocity jumps, mask +/- timesteps
-    self.co["dealiaseSpectrum_makeCoherenceTest_maskRadius"] = 15
+    self.co["dealiaseSpectrum_makeCoherenceTest_maskRadius"] = 10
 
     
     #netCDF options
@@ -385,14 +385,14 @@ class MrrZe:
       self.rawSpectrum = np.ma.masked_array(intSpectrum,self.rawSpectrum.mask)
       self.qual["interpolatedSpectrum"] = np.ones(self._shape2D,dtype=bool)
       if self.debugStopper == 5: return
-      
-      if self.co["fillInterpolatedPeakGaps"]:
-	self.rawSpectrum.mask, self.qual["filledInterpolatedPeakGaps"] = self._fillInterpolatedPeakGaps(self.rawSpectrum.mask)
-      else:
-	self.qual["filledInterpolatedPeakGaps"] = np.zeros(self._shape2D,dtype=bool)
-
     else:
       self.qual["interpolatedSpectrum"] = np.zeros(self._shape2D,dtype=bool)
+    
+    if self.co["fillInterpolatedPeakGaps"]:
+      self.rawSpectrum.mask, self.qual["filledInterpolatedPeakGaps"] = self._fillInterpolatedPeakGaps(self.rawSpectrum.mask)
+    else:
+      self.qual["filledInterpolatedPeakGaps"] = np.zeros(self._shape2D,dtype=bool)
+
       
     if self.co["dealiaseSpectrum"] == True:
       
@@ -575,10 +575,6 @@ class MrrZe:
     tooThinn = np.sum(np.logical_not(peakMask),axis=-1) < self.co["findPeak_minPeakWidth"]
     peakMask[tooThinn] = True
     quality["peakTooThinn"] = tooThinn
-
-    if self.co["check4BorderPeaks"]:
-      peakMask = self._getBorderPeaks(spectrumFlat,peakMask)
-     
     
     if self.co["debug"] > 0: print "runtime", time.time()-t,"s"
     return np.reshape(peakMask,np.shape(spectrum)), quality["peakTooThinn"],quality["veryWidePeakeUsedSecondPeakAlgorithm"]   #spectrum
@@ -771,38 +767,6 @@ class MrrZe:
 	    break
     return maskDescAve
 
-
-  def _getBorderPeaks(self,spectrumFlat,joinedMask):
-    '''
-    find all spectra with signal at the borders
-    '''
-    foldingCandidatesLeft = (joinedMask[...,0] == False)
-    foldingCandidatesRight = (joinedMask[...,-1] == False)
-    
-    
-    if np.any(foldingCandidatesLeft):
-      
-      #the getPeakDescendingAve function needs a list of maxima, so give it the right border
-      second_iMaxLeft= np.array([spectrumFlat.shape[1]-1]*np.sum(foldingCandidatesLeft))
-      
-      #get the additional mask, the already found peak is masked out and not treated!
-      additionalMaskLeft = self._getPeakDescendingAve(np.ma.masked_array(spectrumFlat[foldingCandidatesLeft],~joinedMask[foldingCandidatesLeft]),second_iMaxLeft)
-      #cancel additional peak which are only one bin wide!
-      additionalMaskLeft[np.sum(~additionalMaskLeft,axis=-1)<=1] = True
-      #add the additional mask to exisiting one
-      joinedMask[foldingCandidatesLeft] = joinedMask[foldingCandidatesLeft] * additionalMaskLeft
-      
-    if np.any(foldingCandidatesRight):  
-      #same for the otehr border
-      second_iMaxRight= np.array([0]*np.sum(foldingCandidatesRight))
-
-      
-      additionalMaskRight =self._getPeakDescendingAve(np.ma.masked_array(spectrumFlat[foldingCandidatesRight],~joinedMask[foldingCandidatesRight]),second_iMaxRight)
-      additionalMaskRight[np.sum(~additionalMaskRight,axis=-1)<=1] = True
-      
-      joinedMask[foldingCandidatesRight] = joinedMask[foldingCandidatesRight] * additionalMaskRight
-   
-    return joinedMask
 	
   def _fillInterpolatedPeakGaps(self, specMask):
     '''
@@ -878,9 +842,6 @@ class MrrZe:
     
     #extend spectrum to 192 bins and unmask best fitting peaks
     extendedRawSpectrum = self._findHeightsForPeaks(extendedRawSpectrum,self._trustedPeakNo,self._trustedPeakVel,self._trustedPeakHeight,self._trustedPeakHeightStart,self._trustedPeakHeightStop,self._allPeaks, self._allPeaksIndices, self._allPeaksVelMe, self._allPeaksHeight)
-    
-    #still we don't want peaks at height 0,1,31
-    extendedRawSpectrum.mask[:,self.co["completelyMaskedHeights"]] = True
 
     if self.co["dealiaseSpectrum_makeCoherenceTest"]:
       #simple method to detect falsely folded peaks, works only for 1-2 outliers
@@ -888,6 +849,8 @@ class MrrZe:
     
     self.qual["spectrumIsDealiased"] = np.all(extendedRawSpectrum.mask[:,:,self.co["widthSpectrum"]:2*self.co["widthSpectrum"]] != rawSpectrum.mask[:,:],axis=-1)
     
+    #still we don't want peaks at height 0,1,31
+    extendedRawSpectrum.mask[:,self.co["completelyMaskedHeights"]] = True
     
     return extendedRawSpectrum
     
@@ -1380,24 +1343,64 @@ class MrrZe:
     meanVelocity = np.ma.average(np.ma.sum(newSpectrum*self.specVel,axis=-1)/np.ma.sum(newSpectrum,axis=-1),axis=-1)
   
     velDiffs = np.diff(meanVelocity)
+        
+    velDiffsBig = np.where(velDiffs > self.co["dealiaseSpectrum_makeCoherenceTest_velocityThreshold"])[0]
+    velDiffsSmall = np.where(velDiffs < -self.co["dealiaseSpectrum_makeCoherenceTest_velocityThreshold"])[0]
+   
+    foldUp = list()
     
+    for ll in  velDiffsBig:
+      if ll+1 in velDiffsSmall:
+	foldUp.append(ll+1)
+	continue
+      if ll+2 in velDiffsSmall:
+	foldUp.append(ll+1)
+	foldUp.append(ll+2)
+	continue
+      if ll+3 in velDiffsSmall:
+	foldUp.append(ll+1)
+	foldUp.append(ll+2)
+	foldUp.append(ll+3)
+ 
+    #import pdb;pdb.set_trace()  
+    updatedSpectrumMask = deepcopy(newSpectrum.mask)
+  
+    for tt in foldUp:
+      updatedSpectrumMask[tt] = np.roll(updatedSpectrumMask[tt].ravel(),2* self.co["widthSpectrum"]).reshape((self.co["noH"],3*self.co["widthSpectrum"]))
+      #updatedSpectrumMask[tt,-1,-self.co["widthSpectrum"]:] = True
+      self.qual["DAdirectionCorrectedByCoherenceTest"][tt,:] = True
+    if self.co["debug"] > 4: print 'coherenceTest corrected dealiasing upwards:', foldUp
+
+    newSpectrum = np.ma.masked_array(newSpectrum.data,updatedSpectrumMask)
+
+    #now the same for the other folding direction
+    meanVelocity = np.ma.average(np.ma.sum(newSpectrum*self.specVel,axis=-1)/np.ma.sum(newSpectrum,axis=-1),axis=-1)
+  
+    velDiffs = np.diff(meanVelocity)
+
     #find very big differences
-    velDiffsBig = np.where(velDiffs > 8)[0]
-    velDiffsSmall = np.where(velDiffs < -8)[0]
+    velDiffsBig = np.where(velDiffs > self.co["dealiaseSpectrum_makeCoherenceTest_velocityThreshold"])[0]
+    velDiffsSmall = np.where(velDiffs < -self.co["dealiaseSpectrum_makeCoherenceTest_velocityThreshold"])[0]
     
     foldDn = list()
-    
     #check whether there is an opposite one close by and collect time steps to be refolded
     for ll in  velDiffsSmall:
       if ll+1 in velDiffsBig:
 	foldDn.append(ll+1)
-	if ll+2 in velDiffsBig:
-	  foldDn.append(ll+2)
-	  if ll+3 in velDiffsBig:
-	    foldDn.append(ll+2)
+	continue
+      if ll+2 in velDiffsBig:
+	foldDn.append(ll+1)
+	foldDn.append(ll+2)
+	continue
+      if ll+3 in velDiffsBig:
+	foldDn.append(ll+1)
+	foldDn.append(ll+2)
+	foldDn.append(ll+2)
+ 
+    #import pdb;pdb.set_trace()  
 	
     updatedSpectrumMask = deepcopy(newSpectrum.mask)
-    #cahnge all peaks accordingly
+    #change all peaks accordingly
     for tt in foldDn:
       #roll the mask!
       updatedSpectrumMask[tt] = np.roll(updatedSpectrumMask[tt].ravel(),-2*self.co["widthSpectrum"]).reshape((self.co["noH"],3*self.co["widthSpectrum"]))
@@ -1409,44 +1412,17 @@ class MrrZe:
     newSpectrum = np.ma.masked_array(newSpectrum.data,updatedSpectrumMask)
     
     
-    #now the same for the other folding direction
-    meanVelocity = np.ma.average(np.ma.sum(newSpectrum*self.specVel,axis=-1)/np.ma.sum(newSpectrum,axis=-1),axis=-1)
-  
-    velDiffs = np.diff(meanVelocity)
-    
-    velDiffsBig = np.where(velDiffs > self.co["dealiaseSpectrum_makeCoherenceTest_velocityThreshold"])[0]
-    velDiffsSmall = np.where(velDiffs < -self.co["dealiaseSpectrum_makeCoherenceTest_velocityThreshold"])[0]
-    
-    foldUp = list()
-    
-    for ll in  velDiffsBig:
-      if ll+1 in velDiffsSmall:
-	foldUp.append(ll+1)
-	if ll+2 in velDiffsSmall:
-	  foldUp.append(ll+2)
-	  if ll+3 in velDiffsSmall:
-	    foldUp.append(ll+3)
- 
-  
-    updatedSpectrumMask = deepcopy(newSpectrum.mask)
-  
-    for tt in foldUp:
-      updatedSpectrumMask[tt] = np.roll(updatedSpectrumMask[tt].ravel(),2* self.co["widthSpectrum"]).reshape((self.co["noH"],3*self.co["widthSpectrum"]))
-      #updatedSpectrumMask[tt,-1,-self.co["widthSpectrum"]:] = True
-      self.qual["DAdirectionCorrectedByCoherenceTest"][tt,:] = True
-    if self.co["debug"] > 4: print 'coherenceTest corrected dealiasing upwards:', foldUp
-
-    newSpectrum = np.ma.masked_array(newSpectrum.data,updatedSpectrumMask)
-    
     #this method is very incompelte, so save still odd looking peaks in the quality mask:
-    
-    meanVelocity = np.ma.average(np.ma.sum(newSpectrum*self.specVel,axis=-1)/np.ma.sum(newSpectrum,axis=-1),axis=-1)  
+    #first, collect all height which should be treated, we don't want to find jumps of the interpolated area!: 
+    includedHeights = list(set(range(self.co["maxH"])).difference(set(self.co["completelyMaskedHeights"]+self.co["dealiaseSpectrum_heightsWithInterference"])))
+    #now get the mean velocity of the profile
+    meanVelocity = np.ma.average(np.ma.sum(newSpectrum[:,includedHeights]*self.specVel,axis=-1)/np.ma.sum(newSpectrum[:,includedHeights],axis=-1),axis=-1)
     velDiffs = np.abs(np.diff(meanVelocity))
+    #find all steps exceeding a min velocity threshold
     crazyVelDiffs = np.where(velDiffs > self.co["dealiaseSpectrum_makeCoherenceTest_velocityThreshold"])[0]
-
     
     self.qual["DAbigVelocityJumpDespiteCoherenceTest"] = np.zeros(self._shape2D,dtype=bool)
-    #surrounding data has to be masked as well, take 30min around suspicous data
+    #surrounding data has to be masked as well, take +- self.co["dealiaseSpectrum_makeCoherenceTest_maskRadius"] (default 20min) around suspicous data
     for crazyVelDiff in crazyVelDiffs:
       self.qual["DAbigVelocityJumpDespiteCoherenceTest"][crazyVelDiff-self.co["dealiaseSpectrum_makeCoherenceTest_maskRadius"]:crazyVelDiff+self.co["dealiaseSpectrum_makeCoherenceTest_maskRadius"]+1,:] = True  
       
