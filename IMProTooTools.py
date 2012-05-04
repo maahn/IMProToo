@@ -73,8 +73,8 @@ def _readQualityFile(inputFile):
     try:
       #check for comments
       if fields[0][0:1] == '#':
-	print 'comment', ' '.join(fields)
-	continue
+        print 'comment', ' '.join(fields)
+        continue
       # does the line hav its own timestamp?
       if belongsToOldDate == 1:
 	startDate = fields[0]
@@ -166,3 +166,20 @@ def quantile(x, q,  qtype = 7, issorted = False):
       return y[j]
   else:
       return y[j] + (y[j+1]- y[j])* (c + d * g)    
+
+def _oneD2twoD(vector,shape2,axis):
+  '''
+  helper function to convert 1D to 2D data
+  '''
+  if axis == 0:
+    matrix = np.zeros((shape2,len(vector)))
+    for h in np.arange(shape2):
+      matrix[h]= vector
+  elif axis == 1:
+    matrix = np.zeros((len(vector),shape2))
+    for h in np.arange(shape2):
+      matrix[:,h]= vector
+  else:
+    raise ValueError("wrong axis")
+  return matrix
+  

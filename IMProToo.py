@@ -40,7 +40,7 @@ import IMProTooTools
 
 class MrrZe:
   '''
-  calculates the 'real' MRR Ze
+  calculates the 'real' MRR Ze from RR raw data. The spectra are noise corrected and dealiased
   '''
   warnings.filterwarnings('always','.*', UserWarning,)
 
@@ -280,7 +280,9 @@ class MrrZe:
     
     
   def rawToSnow(self):
-
+    '''
+    core function for calculating Ze. Settings have to be set before
+    '''
 
     self.untouchedRawSpectrum = deepcopy(self.rawSpectrum)
     
@@ -414,7 +416,9 @@ class MrrZe:
     return
 
   def _testMeanW(self,rawSpectrum):
-    velocity = np.ma.masked_array(self.specVel3D,self._specBorderMask3D)
+    '''
+    checks whether spectrum mean velocity is unequal to mean velocity (6m/s)
+    '''  
     
     mask = deepcopy(rawSpectrum.mask) + self._specBorderMask3D
     spec = np.ma.masked_array(rawSpectrum.data,mask)
@@ -425,7 +429,10 @@ class MrrZe:
     
     return noiseMask,Wdiff.filled(0)
     
-  def _testStd(self,rawSpectrum):  
+  def _testStd(self,rawSpectrum):
+    '''
+    checks whether spectrum passes variance limit
+    '''  
     
     mask = deepcopy(rawSpectrum.mask) + self._specBorderMask3D
     spec = np.ma.masked_array(rawSpectrum.data,mask)
@@ -845,7 +852,7 @@ class MrrZe:
 
     if self.co["dealiaseSpectrum_makeCoherenceTest"]:
       #simple method to detect falsely folded peaks, works only for 1-2 outliers
-      extendedRawSpectrum = self._deAlCoherence2(extendedRawSpectrum)
+      extendedRawSpectrum = self._deAlCoherence(extendedRawSpectrum)
     
     self.qual["spectrumIsDealiased"] = np.all(extendedRawSpectrum.mask[:,:,self.co["widthSpectrum"]:2*self.co["widthSpectrum"]] != rawSpectrum.mask[:,:],axis=-1)
     
@@ -1172,166 +1179,9 @@ class MrrZe:
     
     return extendedRawSpectrum
     
-  def _dealiaseSpectrumAdvanced_OLD_TBD(self,newSpectrum,shiftedSpecIndex,qualityArray,foldingCandidates):
-    '''
-    #newSpectrum = deepcopy(rawSpectrum)
-    #newVelocities = deepcopy(specVel)
-    
-    #get according velocities
-    '''
-    shiftedIndices = np.arange(0,self.co["widthSpectrum"]*3)
-    checkForDealaiasing = np.where(np.sum(foldingCandidates,axis=-1)>=1)[0]
 
-    foldDirection = np.zeros(np.shape(foldingCandidates),dtype=int)
 
-    noSpecHalf = self.co["widthSpectrum"] / 2
-    
-    for t in checkForDealaiasing:
-      #get all spectra from one time step
-      singleSpectrum = deepcopy(newSpectrum[t])
-      #don't do anything if everything is masked!'
-      if np.all(singleSpectrum.mask == True): 
-	if self.co["debug"] > 1: print t, "all masked"
-	continue
-      if self.co["debug"] > 0: print t
-      #find all maxima in the spectrum
-      iMax = np.ma.masked_array(np.argmax(singleSpectrum,axis=1),np.all(singleSpectrum.mask,axis=-1))
-      #decide which is the most trustfull one, the one closest to rangegate x
-      trustfullHeight = np.ma.argmin(np.abs(iMax-20))
-      #get the shifted index of the max of the trusted height
-      lastMax = iMax[trustfullHeight]+self.co["widthSpectrum"]
-      for h in range(trustfullHeight,self.co["noH"]-1):
-	#add lower and upper spectra, according velocities can be found in threeVelocities
-	threeSpectra = np.ma.concatenate((singleSpectrum[h-1],singleSpectrum[h],singleSpectrum[h+1],))
-	# find the most likely peak of the 3 spectra on the basis of the height before
-	# don't do anything if there is no peak
-	if np.all(threeSpectra.mask[lastMax-noSpecHalf:lastMax+noSpecHalf] == True):
-	  if self.co["debug"] > 1: print t,h,"np.all(threeSpectra.mask[lastMax-noSpecHalf:lastMax+noSpecHalf] == True)"
-	  newSpectrum[t,h].mask = True
-	  #self.co["debug"] obnly: newSpectrum[t,h].mask = np.logical_not(newSpectrum[t,h].mask)
-	  continue
-	#get borders and width of the most likely peak
-	peakMinIndex = np.ma.min(np.where(threeSpectra[lastMax-noSpecHalf:lastMax+noSpecHalf])) + lastMax - noSpecHalf
-	peakMaxIndex = np.ma.max(np.where(threeSpectra[lastMax-noSpecHalf:lastMax+noSpecHalf])) + lastMax - noSpecHalf
-	peakWidth = peakMaxIndex - peakMinIndex
-	#how much spectrum do we have to add to the left and to the right?
-	addLeft = (self.co["widthSpectrum"]-peakWidth)/2
-	addRight = (self.co["widthSpectrum"]-peakWidth)/2
-	if (peakWidth % 2 == 1) : addRight +=1
-	#find the new borders, equaly around the peak
-	leftBorder = peakMinIndex-addLeft
-	rightBorder = peakMaxIndex+addRight
-	#what if borders larger than spectrum?
-	if leftBorder < 0:
-	  leftBorder = 0
-	  rightBorder = self.co["widthSpectrum"]
-	elif rightBorder > 3*self.co["widthSpectrum"]:
-	  leftBorder = 2*self.co["widthSpectrum"]
-	  rightBorder = 3*self.co["widthSpectrum"]
-	#finally get the new spectrum and the according velocities!
-	newSpectrum[t,h] = threeSpectra[leftBorder:rightBorder]
-	shiftedSpecIndex[t,h] = shiftedIndices[leftBorder:rightBorder]
-
-	#for statistics, in which direction did we fold
-	if leftBorder< self.co["widthSpectrum"]:
-	  foldDirection[t,h] = -1
-	elif rightBorder >=128:
-	  foldDirection[t,h] = 1    
-	#and remember the max for the next height
-	lastMax = np.argmax(newSpectrum[t,h])+leftBorder
-	if self.co["debug"] > 1: print t,h,leftBorder,lastMax
-	
-      lastMax = iMax[trustfullHeight]+self.co["widthSpectrum"]
-      for h in range(trustfullHeight-1,1,-1):
-	#if iMax.mask[h] == True:# or foldingCandidates[t,h] == False:
-	  #if self.co["debug"] > 1: print t,h,"iMax.mask[h] == True"#" or foldingCandidates[t,h] == False"
-	  #continue
-	#print t,h
-	threeSpectra = np.ma.concatenate((singleSpectrum[h-1],singleSpectrum[h],singleSpectrum[h+1],))
-	
-	#we don't want a shrinked mask, it has to be full size!
-	if threeSpectra.mask.shape == ():
-	  threeSpectra.mask = np.ones(threeSpectra.shape,dtype=bool)*threeSpectra.mask
-	
-	if np.all(threeSpectra.mask[lastMax-noSpecHalf:lastMax+noSpecHalf] == True):
-	  if self.co["debug"] > 1: print t,h,"np.all(threeSpectra.mask[lastMax-noSpecHalf:lastMax+noSpecHalf] == True)"
-	  #self.co["debug"] only newSpectrum[t,h].mask = np.logical_not(newSpectrum[t,h].mask)
-	  newSpectrum[t,h].mask = True
-	  continue
-	peakMinIndex = np.ma.min(np.where(threeSpectra[lastMax-noSpecHalf:lastMax+noSpecHalf])) + lastMax - noSpecHalf
-	peakMaxIndex = np.ma.max(np.where(threeSpectra[lastMax-noSpecHalf:lastMax+noSpecHalf])) + lastMax - noSpecHalf
-	peakWidth = peakMaxIndex - peakMinIndex
-	addLeft = (self.co["widthSpectrum"]-peakWidth)/2
-	addRight = (self.co["widthSpectrum"]-peakWidth)/2
-	if (peakWidth % 2 == 1) : addRight +=1
-	leftBorder = peakMinIndex-addLeft
-	rightBorder = peakMaxIndex+addRight
-	if leftBorder < 0:
-	  leftBorder = 0
-	  rightBorder = self.co["widthSpectrum"]
-	elif rightBorder > 3*self.co["widthSpectrum"]:
-	  leftBorder = 2*self.co["widthSpectrum"]
-	  rightBorder = 3*self.co["widthSpectrum"]
-	newSpectrum[t,h] = threeSpectra[leftBorder:rightBorder]
-	shiftedSpecIndex[t,h] = shiftedIndices[leftBorder:rightBorder]
-	#for statistics, in which direction did we fold
-	if leftBorder< self.co["widthSpectrum"]:
-	  foldDirection[t,h] = -1
-	elif rightBorder >=128:
-	  foldDirection[t,h] = 1    
-	lastMax = np.argmax(newSpectrum[t,h])+leftBorder
-	if self.co["debug"] > 1: print t,h,leftBorder,lastMax
-
-    qualityArray[foldDirection == 1] = qualityArray[foldDirection == 1] +   0b0000000000100000 #11) spectrum dealiased to the right 
-    qualityArray[foldDirection == -1] = qualityArray[foldDirection == -1] + 0b0000000001000000 #10) spectrum dealiased to the left 
-    
-    return newSpectrum,shiftedSpecIndex,qualityArray,foldDirection
-
-  def _deAlCoherence(self,newSpectrum,newShiftedIndex,oldSpectrum,qualityArray,foldDirection,foldingCandidates):
-    '''
-    make sure no weired foldings happend
-    '''
-    #checkForWeiredFolding = (np.all(foldDirection>=0,axis=-1) + np.all(foldDirection<=0,axis=-1)) * (np.sum(foldingCandidates,axis=-1)>1)
-    checkForWeiredFolding = np.sum(foldingCandidates,axis=-1)>1
-    foldDirectionPerTimeStep = [cmp(i,0) for i in np.sum(foldDirection,axis=-1)]
-    lastFolding = 0
-    #import pdb; pdb.set_trace()
-    for t in np.arange(np.shape(oldSpectrum)[0]):
-      if self.co["debug"] > 4: print t,checkForWeiredFolding[t],foldDirectionPerTimeStep[t],lastFolding
-      if checkForWeiredFolding[t] == False or foldDirectionPerTimeStep[t] == 0:
-	lastFolding = 0
-	continue
-      
-      if lastFolding != foldDirectionPerTimeStep[t] and lastFolding!= 0:
-	if self.co["debug"] > 1: print "ALERT",t,"crazy fold!",foldDirectionPerTimeStep[t]
-	
-	#repair here
-	#
-	if foldDirectionPerTimeStep[t] == 1:
-	  iToMove = np.where(foldDirection[t] == 1)[0]
-	  newSpectrum[t,iToMove + 1] = newSpectrum[t,iToMove]
-	  newSpectrum[t,iToMove[0]] = oldSpectrum[t,iToMove[0]]
-	  newShiftedIndex[t,iToMove + 1] = newShiftedIndex[t,iToMove] -  self.co["widthSpectrum"]
-	  newShiftedIndex[t,iToMove[0]] = np.arange(self.co["widthSpectrum"]) + self.co["widthSpectrum"]
-	  qualityArray[t] = qualityArray[t] + 0b0000000000010000 #12) spectrum refolded due to coherence test!
-
-	  
-	elif foldDirectionPerTimeStep[t] == -1:
-	  iToMove = np.where(foldDirection[t] == -1)[0]
-	  newSpectrum[t,iToMove -1 ] = newSpectrum[t,iToMove]
-	  newSpectrum[t,iToMove[-1]] = oldSpectrum[t,iToMove[-1]]
-	  newShiftedIndex[t,iToMove -1 ] = newShiftedIndex[t,iToMove] +  self.co["widthSpectrum"]
-	  newShiftedIndex[t,iToMove[-1]] = np.arange(self.co["widthSpectrum"]) + self.co["widthSpectrum"]
-	  self.quality[t] = qualityArray[t] + 0b0000000000010000 #12) spectrum refolded due to coherence test!
-	
-	
-	lastFolding = lastFolding
-      else:
-	lastFolding = foldDirectionPerTimeStep[t]
-	
-    return newSpectrum,newShiftedIndex,qualityArray
-
-  def _deAlCoherence2(self,newSpectrum):
+  def _deAlCoherence(self,newSpectrum):
     '''
     make sure no weired foldings happend by looking for big jumps in the height-averaged velocity
     if two jumps very closely together (<=3 peaks inbetween) are found, teh peaks inbetween are corrected
@@ -1430,24 +1280,12 @@ class MrrZe:
       
     return newSpectrum
     
-  def _oneD2twoD(self,vector,shape2,axis):
-    if axis == 0:
-      matrix = np.zeros((shape2,len(vector)))
-      for h in np.arange(shape2):
-	matrix[h]= vector
-    elif axis == 1:
-      matrix = np.zeros((len(vector),shape2))
-      for h in np.arange(shape2):
-	matrix[:,h]= vector
-    else:
-      raise ValueError("wrong axis")
-    return matrix
-  
   def _calcEtaZeW(self,rawSpectra,heights,velocities,noise):
     '''
+    calculate the spectral moements and other spectral variables
     '''
 
-    deltaH = self._oneD2twoD(heights[...,15]-heights[...,14], heights.shape[-1], 1)
+    deltaH = IMProTooTools._oneD2twoD(heights[...,15]-heights[...,14], heights.shape[-1], 1)
     
     #transponieren um multiplizieren zu ermoeglichen!
     eta = (rawSpectra.data.T * np.array((self.co["mrrCalibConst"] * (heights**2 / deltaH)) / ( 1e20),dtype=float).T).T
@@ -1471,6 +1309,9 @@ class MrrZe:
     
     
   def getQualityBinArray(self,qual):
+    '''
+    convert the bool quality masks to one binary array
+    '''  
     
     binQual = np.zeros(self._shape2D,dtype=int)
     qualFac=dict()
@@ -1716,7 +1557,9 @@ class MrrZe:
 
 class mrrProcessedData:
   '''
-  Class to read and process MRR average or instantaneous data
+  Class to read MRR average or instantaneous data
+  includes function to save data to netcdf
+
   '''
   missingNumber = -9999
   
@@ -2116,7 +1959,8 @@ class mrrProcessedData:
 
 class mrrRawData:
   '''
-  Class to read and process MRR raw data
+  Class to read MRR raw data
+  includes function to save data to netcdf
   '''
   
   missingNumber = -9999
