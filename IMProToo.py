@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 '''
-ImProToo
-Innominate MRR Processing Tool
+IMProToo
+Improved MRR Processing Tool
 
-Python toolkit to read and write MRR Data. Raw Data, Average and Instantaneous
+Python toolkit to read, write and process MRR Data. Raw Data, Average and Instantaneous
 Data are supported.
 
 Copyright (C) 2011,2012 Maximilian Maahn, IGMK (mmaahn@meteo.uni-koeln.de)
@@ -36,11 +36,11 @@ import sys
 
 import IMProTooTools
 
-
+__version__ = "0.9"
 
 class MrrZe:
   '''
-  calculates the 'real' MRR Ze from RR raw data. The spectra are noise corrected and dealiased
+  calculates the 'real' MRR Ze from MRR raw data. The spectra are noise corrected and dealiased
   '''
   warnings.filterwarnings('always','.*', UserWarning,)
 
@@ -54,10 +54,12 @@ class MrrZe:
     #verbosity
     self.co["debug"] = 0
     
-    #MRR Settings
+    #######MRR Settings#######
+    
     #mrr frequency, MRR after 2011 (or upgraded) use 24.23e9
     self.co["mrrFrequency"] = 24.15e9 #in Hz,
-    self.co["lamb"] = 299792458. / self.co["mrrFrequency"] #wavelength in m
+    #wavelength in m
+    self.co["lamb"] = 299792458. / self.co["mrrFrequency"] 
     #mrr calibration constant
     self.co["mrrCalibConst"] = rawData.mrrRawCC
 
@@ -86,7 +88,7 @@ class MrrZe:
     self.co["K2"] = 0.92
 
     
-    #options for finding peaks
+    #######options for finding peaks#######
     
     #minimum width of a peak
     self.co["findPeak_minPeakWidth"] = 4
@@ -100,7 +102,7 @@ class MrrZe:
     
     
     
-    #options for getting peaks    
+    #######options for getting peaks#######
     
     #method for finding peaks in the spectrum, either based on Hildebrand and Sekhon, 1974 [hilde] or on the method of descending average [descAve]. [hilde] is recommended
     self.co["getPeak_method"] = "hilde" #["hilde","descAve"]
@@ -116,7 +118,8 @@ class MrrZe:
     #descAve stops not before mean is smaller than self.co["getPeak_descAveMinMeanWeight"] of the mean of the self.co["getPeak_descAveCheckWidth"] smallest bins. make very big to turn off
     self.co["getPeak_descAveMinMeanWeight"] = 4 
     
-    #general options
+    #######general options#######
+    
     #process only peaks in self.co["spectrumBorderMin"][height]:self.co["spectrumBorderMax"][height]
     self.co["spectrumBorderMin"] = [5, 4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 5]
     self.co["spectrumBorderMax"] =[60,61,62,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,62,61,63]
@@ -129,9 +132,11 @@ class MrrZe:
     #first height with trustfull peaks. Setting important for dealiasing to avoid folding from completelyMaskedHeights into the first used height.
     self.co["firstUsedHeight"] = 2
     
-    #dealiasing options
+    #######dealiasing options#######
+    
+    #dealiase spectrum yes/no
     self.co["dealiaseSpectrum"] = True    
-    #save also non dealiased eta, Ze, W, Znoise specWidth, peakLeftBorder, peakRightBorder
+    #save also non dealiased eta, Ze, W, Znoise specWidth, peakVelLeftBorder, peakVelRightBorder
     self.co["dealiaseSpectrum_saveAlsoNonDealiased"] = True
     #make sure there is only one peak per heigth after deailiasing!
     self.co["dealiaseSpectrum_maxOnePeakPerHeight"] = True
@@ -140,7 +145,6 @@ class MrrZe:
     self.co['dealiaseSpectrum_Ze-vRelationSnowB'] = 0.063 #Atlas et al. 1973
     self.co['dealiaseSpectrum_Ze-vRelationRainA'] = 2.6   #Atlas et al. 1973
     self.co['dealiaseSpectrum_Ze-vRelationRainB'] = 0.107 #Atlas et al. 1973
-    
     #trusted peak needs minimal Ze
     self.co['dealiaseSpectrum_trustedPeakminZeQuantile'] = 0.1
     #if you have interference, you don't want to start you dealiasing procedure there
@@ -153,14 +157,15 @@ class MrrZe:
     self.co["dealiaseSpectrum_makeCoherenceTest_maskRadius"] = 10
 
     
-    #netCDF options
+    #######netCDF options#######
+    
     self.co["ncCreator"] = "M.Maahn, IGM University of Cologne"    
     self.co["ncDescription"] = ""    
     
-    
+    #######end of settings#######    
 
     
-    
+    #special option to top processing in the middel and return results
     self.debugStopper = 0
     
     self.missingNumber = -9999.
@@ -281,9 +286,13 @@ class MrrZe:
     
   def rawToSnow(self):
     '''
-    core function for calculating Ze. Settings have to be set before
+    core function for calculating Ze and other moments. Settings have to be set before
     '''
 
+    if self.co["mrrCalibConst"] == 0:
+      sys.exit('ERROR: MRR calibration constant set to 0!')
+
+    
     self.untouchedRawSpectrum = deepcopy(self.rawSpectrum)
     
     self.specVel = self.co["nyqVel"]
@@ -351,7 +360,6 @@ class MrrZe:
     self.snr = np.max(self.rawSpectrum,axis=-1)/self.specNoise
     self.snr = self.snr.filled(0)
     #check whether snr Limit is exceeded
-    #import pdb;pdb.set_trace()
     snrMask = (self.snr.T < (self.co["findPeak_minSnrCoeffA"]+self.co["findPeak_minSnrCoeffB"]/self.noSpecPerTimestep**1/2).T).T
     snrMask3D = np.zeros(self._shape3D,dtype=bool)
     snrMask3D.T[:] = snrMask.T
@@ -399,7 +407,7 @@ class MrrZe:
     if self.co["dealiaseSpectrum"] == True:
       
       if self.co["dealiaseSpectrum_saveAlsoNonDealiased"] == True:
-	self.eta_noDA, self.Ze_noDA, self.W_noDA, self.Znoise_noDA, self.specWidth_noDA, self.peakLeftBorder_noDA, self.peakRightBorder_noDA = self._calcEtaZeW(self.rawSpectrum,self.H,self.specVel3D,self.specNoise)
+	self.eta_noDA, self.Ze_noDA, self.W_noDA, self.Znoise_noDA, self.specWidth_noDA, self.skewness_noDA, self.kurtosis_noDA, self.peakVelLeftBorder_noDA, self.peakVelRightBorder_noDA, self.leftSlope_noDA, self.rightSlope_noDA = self._calcEtaZeW(self.rawSpectrum,self.H,self.specVel3D,self.specNoise)
 	self.qual_noDA = deepcopy(self.qual)
 	
       self.rawSpectrum = self._dealiaseSpectrum(self.rawSpectrum)
@@ -409,8 +417,7 @@ class MrrZe:
       
     else: 
       pass
-    
-    self.eta, self.Ze, self.W, self.Znoise, self.specWidth, self.peakLeftBorder, self.peakRightBorder = self._calcEtaZeW(self.rawSpectrum,self.H,self.specVel3D,self.specNoise)
+    self.eta, self.Ze, self.W, self.Znoise, self.specWidth, self.skewness, self.kurtosis, self.peakVelLeftBorder, self.peakVelRightBorder, self.leftSlope, self.rightSlope = self._calcEtaZeW(self.rawSpectrum,self.H,self.specVel3D,self.specNoise)
     #maek bin mask out of quality information
     self.qualityBin, self.qualityDesc = self.getQualityBinArray(self.qual)
     return
@@ -422,6 +429,7 @@ class MrrZe:
     
     mask = deepcopy(rawSpectrum.mask) + self._specBorderMask3D
     spec = np.ma.masked_array(rawSpectrum.data,mask)
+    velocity = np.ma.masked_array(self.specVel3D,self._specBorderMask3D)
 
     Wdiff=np.absolute(np.ma.average(velocity,axis=-1)-(np.ma.sum(velocity*spec,axis=-1)/np.sum(spec,axis=-1)))
     
@@ -559,7 +567,6 @@ class MrrZe:
       #get peak using Hildebrands method
       firstPeakMask = self._getPeakDescendingAve(spectrumFlat,iMaxFlat)
     else: raise ValueError("Unknown doubleCheckPreference: "+  self.co["getPeak_method"])
-    #import pdb;pdb.set_trace()
     
     peakMask = deepcopy(firstPeakMask)
     #look for wide peak and make a second check
@@ -606,7 +613,6 @@ class MrrZe:
     iPeakMax = deepcopy(iMax)
     iPeakMin = deepcopy(iMax)
     
-    #import pdb; pdb.set_trace()
     #not only uses extra limit, but also starts at the peak!, thus specturm is refolded around peak!
     
     #then get the edges of the peak as index of the spectrum
@@ -673,18 +679,13 @@ class MrrZe:
     #calculate the Hildebrand coefficient
     Dvar[Dvar==0] = 0.0001
     Coefficient = ((Dmean**2) / Dvar)
-    #check where hildebrands assumotion is true
+    #check where hildebrands assumption is true
     for j in np.arange(np.shape(dataFlat)[0]):
-      #if everything is masked, cancel the loop
-      #if Coefficient[j:j+1,-1].mask == True:
-	#limits[j] = 0
-      #else:
       for i in np.arange(specLength-1,-1,-1):
 	if Coefficient[j,i] >= noSpecs[j]:
 	  limits[j] = dataFlat[j,i-1]
 	  break
 
-    #import pdb; pdb.set_trace()
     if flat == False:
       limits = np.reshape(limits,(dataShape,self.co["noH"]))
 
@@ -710,13 +711,11 @@ class MrrZe:
 	#the rolling allow recognition also if 0 m/s is crossed
 	rolledSpectrum = np.roll(dataFlat[k],-iMax[k])
 	rolledMask = np.roll(maskDescAve[k],-iMax[k])
-	#import pdb;pdb.set_trace()
 	meanRightOld = np.ma.mean(rolledSpectrum[1:self.co["getPeak_descAveCheckWidth"]+1])
 	meanLeftOld = np.ma.mean(rolledSpectrum[-1:-(self.co["getPeak_descAveCheckWidth"]+1):-1])
 	minMeanToBreak = self.co["getPeak_descAveMinMeanWeight"] * np.mean(np.sort(dataFlat[k])[0:self.co["getPeak_descAveCheckWidth"]])
 	#unmask peak
 	rolledMask[0] = False
-	#if k == 10: import pdb;pdb.set_trace()
 	#to the right:
 	for i in np.arange(1,dataFlat.shape[-1],1):
 	  meanRight = np.ma.mean(rolledSpectrum[i:i+self.co["getPeak_descAveCheckWidth"]])
@@ -725,12 +724,7 @@ class MrrZe:
 	    rolledMask[i] = False
 	    meanRightOld = meanRight
 	  else:
-	    #apply threshold only if it is lower than twice the mean of the smalles bins!
-	    #if meanRight > minMeanToBreak:
-	      #rolledMask[i] = False
-	      #meanRightOld = meanRight
-	    #else:
-	      break
+	    break
 	#to the left
 	for i in np.arange(dataFlat.shape[-1]-1,0-1,-1):
 	  meanLeft =  np.ma.mean(rolledSpectrum[i:i-self.co["getPeak_descAveCheckWidth"]:-1])
@@ -739,12 +733,7 @@ class MrrZe:
 	    rolledMask[i] = False
 	    meanLeftOld = meanLeft
 	  else:
-	    #apply threshold only if it is lower than twice the mean of the smalles bins!
-	    #if meanLeft > minMeanToBreak: 
-	      #rolledMask[i] = False
-	      #meanLeftOld = meanLeft
-	    #else:
-	      break
+	    break
 	dataFlat[k] = np.roll(rolledSpectrum,iMax[k])
 	maskDescAve[k] = np.roll(rolledMask,iMax[k])
     else:
@@ -753,7 +742,6 @@ class MrrZe:
 	meanRightOld = np.ma.mean(dataFlat[k,iMax[k]:])
 	meanLeftOld = np.ma.mean(dataFlat[k,:iMax[k]+1])
 	maskDescAve[k,iMax[k]] = False
-	
 	#to the right:
 	for i in np.arange(iMax[k]+1,dataFlat.shape[-1],1):
 	  meanRight = np.ma.mean(dataFlat[k,i:])
@@ -819,9 +807,6 @@ class MrrZe:
     
     #find one peaks and its veloci/heigth you trust
     self._trustedPeakNo, self._trustedPeakHeight, self._trustedPeakVel, self._trustedPeakHeightStart, self._trustedPeakHeightStop = self._getTrustedPeak(self._allPeaksZe,self._allPeaksVelMe,self._allPeaksRefV,self._allPeaksMaxIndices,self._allPeaksHeight)
-    
-    #self.qual["problemOcurredDuringDA"] = 0 catch the warnings and check for coherence within timestep
-    #self.qual["spectrumIsHeavilyDealiased"] = 0 if velocity outof minus 2 plus 14?
     
     #now extend spectrum!
     extendedRawSpectrum = deepcopy(rawSpectrum.data)
@@ -1016,19 +1001,7 @@ class MrrZe:
 
 	Indices = np.where(followingPeaks)[0][0:3] #don't consider more than 3! the rest is hopefully caught by next loop!
 	smallestZe = Indices[np.argmin(peaksZeCopy[Indices])]
-	#inMiddle = Indices[1]
-	#thinnest = Indices[np.argmin(peaksEndIndices[Indices]- peaksStartIndices[Indices])]
-	
-	#delete if two agree:
-	#agreement = int(smallestZe == inMiddle)+int(inMiddle==thinnest)+int(smallestZe==thinnest)
-	#if agreement>=1:
-	    #if self.co["debug"]>2: print "deleted peak at, no: ",t,pp
-	  #if smallestZe==inMiddle:
 	peaksTbd.append(smallestZe)
-	  #else:
-	    #peakTbd = inMiddle
-	    #import pdb;pdb.set_trace()
-	    #remove them
 
 	#these are needed for the loop, so they are only masked, not deleted
 	peaksStartIndices[peaksTbd[-1]]=-9999
@@ -1177,9 +1150,8 @@ class MrrZe:
 	      warnings.warn('Could not find height of peak! time step '+str(t)+', peak number '+ str(jj)+', most likely at height '+ str(thisPeakHeight))   
 	      self.qual["severeProblemsDuringDA"][t] = True
     
-    return extendedRawSpectrum
     
-
+    return extendedRawSpectrum
 
   def _deAlCoherence(self,newSpectrum):
     '''
@@ -1188,17 +1160,17 @@ class MrrZe:
     can make it worse if dealiasing produces zig-zag patterns.
     
     '''
-    
     self.qual["DAdirectionCorrectedByCoherenceTest"] = np.zeros(self._shape2D)
     meanVelocity = np.ma.average(np.ma.sum(newSpectrum*self.specVel,axis=-1)/np.ma.sum(newSpectrum,axis=-1),axis=-1)
   
     velDiffs = np.diff(meanVelocity)
-        
+    
+    #find velocity jumps
     velDiffsBig = np.where(velDiffs > self.co["dealiaseSpectrum_makeCoherenceTest_velocityThreshold"])[0]
     velDiffsSmall = np.where(velDiffs < -self.co["dealiaseSpectrum_makeCoherenceTest_velocityThreshold"])[0]
    
+    #check whether there is an opposite one close by and collect time steps to be refolded
     foldUp = list()
-    
     for ll in  velDiffsBig:
       if ll+1 in velDiffsSmall:
 	foldUp.append(ll+1)
@@ -1212,12 +1184,12 @@ class MrrZe:
 	foldUp.append(ll+2)
 	foldUp.append(ll+3)
  
-    #import pdb;pdb.set_trace()  
     updatedSpectrumMask = deepcopy(newSpectrum.mask)
   
     for tt in foldUp:
       updatedSpectrumMask[tt] = np.roll(updatedSpectrumMask[tt].ravel(),2* self.co["widthSpectrum"]).reshape((self.co["noH"],3*self.co["widthSpectrum"]))
-      #updatedSpectrumMask[tt,-1,-self.co["widthSpectrum"]:] = True
+      #avoid that something is folded into the highest range gate
+      updatedSpectrumMask[tt,0,:2*self.co["widthSpectrum"]] = True
       self.qual["DAdirectionCorrectedByCoherenceTest"][tt,:] = True
     if self.co["debug"] > 4: print 'coherenceTest corrected dealiasing upwards:', foldUp
 
@@ -1247,7 +1219,6 @@ class MrrZe:
 	foldDn.append(ll+2)
 	foldDn.append(ll+2)
  
-    #import pdb;pdb.set_trace()  
 	
     updatedSpectrumMask = deepcopy(newSpectrum.mask)
     #change all peaks accordingly
@@ -1255,7 +1226,7 @@ class MrrZe:
       #roll the mask!
       updatedSpectrumMask[tt] = np.roll(updatedSpectrumMask[tt].ravel(),-2*self.co["widthSpectrum"]).reshape((self.co["noH"],3*self.co["widthSpectrum"]))
       #avoid that something is folded into the lowest range gate
-      updatedSpectrumMask[tt,0,:self.co["widthSpectrum"]] = True
+      updatedSpectrumMask[tt,-1,-2*self.co["widthSpectrum"]:] = True
       self.qual["DAdirectionCorrectedByCoherenceTest"][tt,:] = True
     if self.co["debug"] > 4: print 'coherenceTest corrected dealiasing Donwards:', foldDn
 
@@ -1275,8 +1246,6 @@ class MrrZe:
     #surrounding data has to be masked as well, take +- self.co["dealiaseSpectrum_makeCoherenceTest_maskRadius"] (default 20min) around suspicous data
     for crazyVelDiff in crazyVelDiffs:
       self.qual["DAbigVelocityJumpDespiteCoherenceTest"][crazyVelDiff-self.co["dealiaseSpectrum_makeCoherenceTest_maskRadius"]:crazyVelDiff+self.co["dealiaseSpectrum_makeCoherenceTest_maskRadius"]+1,:] = True  
-      
-           
       
     return newSpectrum
     
@@ -1299,14 +1268,37 @@ class MrrZe:
     #no slicing neccesary due to mask!
     W = np.ma.sum(velocities*rawSpectra,axis=-1) / np.ma.sum(rawSpectra,axis=-1)
     W = W.filled(-9999)
-    specWidth = np.ma.abs(np.ma.sum(rawSpectra*(velocities.T-W.T).T**2,axis=-1) / np.ma.sum(rawSpectra,axis=-1)).filled(-9999)
+    specWidth = ((np.ma.abs(np.ma.sum(rawSpectra*(velocities.T-W.T).T**2,axis=-1) / np.ma.sum(rawSpectra,axis=-1)))**(1/2)).filled(-9999)
+    skewness =  ((np.ma.abs(np.ma.sum(rawSpectra*(velocities.T-W.T).T**3,axis=-1) / np.ma.sum(rawSpectra,axis=-1)))**(1/3)).filled(-9999)
+    kurtosis =  ((np.ma.abs(np.ma.sum(rawSpectra*(velocities.T-W.T).T**4,axis=-1) / np.ma.sum(rawSpectra,axis=-1)))**(1/4)).filled(-9999)
     
-    peakLeftBorder = self.specVel[np.argmin(rawSpectra.mask,axis=-1)]
-    peakRightBorder = self.specVel[len(self.specVel) - np.argmin(rawSpectra.mask[...,::-1],axis=-1) - 1]
-    peakLeftBorder[Ze == -9999] = -9999
-    peakRightBorder[Ze == -9999] = -9999
-    return eta, Ze, W, Znoise, specWidth, peakLeftBorder, peakRightBorder
+    #get velocity at borders and max of peak
+    peakVelLeftBorder = self.specVel[np.argmin(rawSpectra.mask,axis=-1)]
+    peakVelRightBorder = self.specVel[len(self.specVel) - np.argmin(rawSpectra.mask[...,::-1],axis=-1) - 1]
+    peakVelMax = self.specVel[np.argmax(rawSpectra.filled(-9999),axis=-1)]
     
+    #get the according indices
+    peakArgLeftBorder = np.argmin(rawSpectra.mask,axis=-1)
+    peakArgRightBorder = len(self.specVel) - np.argmin(rawSpectra.mask[...,::-1],axis=-1) - 1
+    
+    #to find the entries we have to flatten everything
+    etaSpectraFlat = eta.reshape((eta.shape[0]*eta.shape[1],eta.shape[2]))
+    
+    #no get the according values
+    peakEtaLeftBorder =  etaSpectraFlat[xrange(etaSpectraFlat.shape[0]),peakArgLeftBorder.ravel()].reshape(self._shape2D)
+    peakEtaRightBorder =     etaSpectraFlat[xrange(etaSpectraFlat.shape[0]),peakArgRightBorder.ravel()].reshape(self._shape2D)
+    
+    peakEtaMax = np.max(eta.filled(-9999),axis=-1)
+    
+    leftSlope =  (peakEtaMax - peakEtaLeftBorder)/(peakVelMax - peakVelLeftBorder)
+    rightSlope = (peakEtaMax - peakEtaRightBorder)/(peakVelMax - peakVelRightBorder)
+    
+    peakVelLeftBorder[Ze == -9999] = -9999
+    peakVelRightBorder[Ze == -9999] = -9999
+    leftSlope[Ze == -9999] = -9999
+    rightSlope[Ze == -9999] = -9999
+    return eta, Ze, W, Znoise, specWidth, skewness, kurtosis, peakVelLeftBorder, peakVelRightBorder, leftSlope, rightSlope
+
     
   def getQualityBinArray(self,qual):
     '''
@@ -1388,9 +1380,10 @@ class MrrZe:
     else: cdfFile = nc.NetCDFFile(fname,"w")
     
     #write meta data
-    cdfFile.history = "Created with IMProToo by "+self.co["ncCreator"]+" at "+ datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+    cdfFile.history = "Created by "+self.co["ncCreator"]+" at "+ datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
     cdfFile.description = self.co["ncDescription"]    
     cdfFile.author = self.co["ncCreator"]
+    cdfFile.source = + 'Created with IMProToo v'+ __version__
     cdfFile.properties = str(self.co)
     cdfFile.mrrHeader = str(self.header)
     
@@ -1489,39 +1482,87 @@ class MrrZe:
 
     if varsToSave=='all' or "specWidth_noDA" in varsToSave:
       nc_specWidth_noDA = cdfFile.createVariable('spectralWidth_noDA', 'f',ncShape2D,**fillVDict)
-      nc_specWidth_noDA.units = "m^2/s^2"
+      nc_specWidth_noDA.units = "m/s"
       nc_specWidth_noDA[:] = np.array(self.specWidth_noDA,dtype="f4")
       if not pyNc: nc_specWidth_noDA._FillValue =float(self.missingNumber)
       
     if varsToSave=='all' or "specWidth" in varsToSave:
       nc_specWidth = cdfFile.createVariable('spectralWidth', 'f',ncShape2D,**fillVDict)
-      nc_specWidth.units = "m^2/s^2"
+      nc_specWidth.units = "m/s"
       nc_specWidth[:] = np.array(self.specWidth,dtype="f4")
       if not pyNc: nc_specWidth._FillValue =float(self.missingNumber)
 
-    if varsToSave=='all' or "peakLeftBorder_noDA" in varsToSave:
-      nc_peakLeftBorder_noDA = cdfFile.createVariable('peakLeftBorder_noDA', 'f',ncShape2D,**fillVDict)
-      nc_peakLeftBorder_noDA.units = "m/s"
-      nc_peakLeftBorder_noDA[:] = np.array(self.peakLeftBorder_noDA,dtype="f4")
-      if not pyNc: nc_peakLeftBorder_noDA._FillValue =float(self.missingNumber)
+    if varsToSave=='all' or "skewness_noDA" in varsToSave:
+      nc_skewness_noDA = cdfFile.createVariable('spectralWidth_noDA', 'f',ncShape2D,**fillVDict)
+      nc_skewness_noDA.units = "m/s"
+      nc_skewness_noDA[:] = np.array(self.skewness_noDA,dtype="f4")
+      if not pyNc: nc_skewness_noDA._FillValue =float(self.missingNumber)
       
-    if varsToSave=='all' or "peakLeftBorder" in varsToSave:
-      nc_peakLeftBorder = cdfFile.createVariable('peakLeftBorder', 'f',ncShape2D,**fillVDict)
-      nc_peakLeftBorder.units = "m/s"
-      nc_peakLeftBorder[:] = np.array(self.peakLeftBorder,dtype="f4")
-      if not pyNc: nc_peakLeftBorder._FillValue =float(self.missingNumber)
+    if varsToSave=='all' or "skewness" in varsToSave:
+      nc_skewness = cdfFile.createVariable('spectralWidth', 'f',ncShape2D,**fillVDict)
+      nc_skewness.units = "m/s"
+      nc_skewness[:] = np.array(self.skewness,dtype="f4")
+      if not pyNc: nc_skewness._FillValue =float(self.missingNumber)
 
-    if varsToSave=='all' or "peakRightBorder_noDA" in varsToSave:
-      nc_peakRightBorder_noDA = cdfFile.createVariable('peakRightBorder_noDA', 'f',ncShape2D,**fillVDict)
-      nc_peakRightBorder_noDA.units = "m/s"
-      nc_peakRightBorder_noDA[:] = np.array(self.peakRightBorder_noDA,dtype="f4")
-      if not pyNc: nc_peakRightBorder_noDA._FillValue =float(self.missingNumber)
+    if varsToSave=='all' or "kurtosis_noDA" in varsToSave:
+      nc_kurtosis_noDA = cdfFile.createVariable('spectralWidth_noDA', 'f',ncShape2D,**fillVDict)
+      nc_kurtosis_noDA.units = "m/s"
+      nc_kurtosis_noDA[:] = np.array(self.kurtosis_noDA,dtype="f4")
+      if not pyNc: nc_kurtosis_noDA._FillValue =float(self.missingNumber)
       
-    if varsToSave=='all' or "peakRightBorder" in varsToSave:
-      nc_peakRightBorder = cdfFile.createVariable('peakRightBorder', 'f',ncShape2D,**fillVDict)
-      nc_peakRightBorder.units = "m/s"
-      nc_peakRightBorder[:] = np.array(self.peakRightBorder,dtype="f4")
-      if not pyNc: nc_peakRightBorder._FillValue =float(self.missingNumber)
+    if varsToSave=='all' or "kurtosis" in varsToSave:
+      nc_kurtosis = cdfFile.createVariable('spectralWidth', 'f',ncShape2D,**fillVDict)
+      nc_kurtosis.units = "m/s"
+      nc_kurtosis[:] = np.array(self.kurtosis,dtype="f4")
+      if not pyNc: nc_kurtosis._FillValue =float(self.missingNumber)
+
+    if varsToSave=='all' or "peakVelLeftBorder_noDA" in varsToSave:
+      nc_peakVelLeftBorder_noDA = cdfFile.createVariable('peakVelLeftBorder_noDA', 'f',ncShape2D,**fillVDict)
+      nc_peakVelLeftBorder_noDA.units = "m/s"
+      nc_peakVelLeftBorder_noDA[:] = np.array(self.peakVelLeftBorder_noDA,dtype="f4")
+      if not pyNc: nc_peakVelLeftBorder_noDA._FillValue =float(self.missingNumber)
+      
+    if varsToSave=='all' or "peakVelLeftBorder" in varsToSave:
+      nc_peakVelLeftBorder = cdfFile.createVariable('peakVelLeftBorder', 'f',ncShape2D,**fillVDict)
+      nc_peakVelLeftBorder.units = "m/s"
+      nc_peakVelLeftBorder[:] = np.array(self.peakVelLeftBorder,dtype="f4")
+      if not pyNc: nc_peakVelLeftBorder._FillValue =float(self.missingNumber)
+
+    if varsToSave=='all' or "peakVelRightBorder_noDA" in varsToSave:
+      nc_peakVelRightBorder_noDA = cdfFile.createVariable('peakVelRightBorder_noDA', 'f',ncShape2D,**fillVDict)
+      nc_peakVelRightBorder_noDA.units = "m/s"
+      nc_peakVelRightBorder_noDA[:] = np.array(self.peakVelRightBorder_noDA,dtype="f4")
+      if not pyNc: nc_peakVelRightBorder_noDA._FillValue =float(self.missingNumber)
+      
+    if varsToSave=='all' or "peakVelRightBorder" in varsToSave:
+      nc_peakVelRightBorder = cdfFile.createVariable('peakVelRightBorder', 'f',ncShape2D,**fillVDict)
+      nc_peakVelRightBorder.units = "m/s"
+      nc_peakVelRightBorder[:] = np.array(self.peakVelRightBorder,dtype="f4")
+      if not pyNc: nc_peakVelRightBorder._FillValue =float(self.missingNumber)
+
+    if varsToSave=='all' or "leftSlope_noDA" in varsToSave:
+      nc_leftSlope_noDA = cdfFile.createVariable('leftSlope_noDA', 'f',ncShape2D,**fillVDict)
+      nc_leftSlope_noDA.units = "m/s"
+      nc_leftSlope_noDA[:] = np.array(self.leftSlope_noDA,dtype="f4")
+      if not pyNc: nc_leftSlope_noDA._FillValue =float(self.missingNumber)
+      
+    if varsToSave=='all' or "leftSlope" in varsToSave:
+      nc_leftSlope = cdfFile.createVariable('leftSlope', 'f',ncShape2D,**fillVDict)
+      nc_leftSlope.units = "m/s"
+      nc_leftSlope[:] = np.array(self.leftSlope,dtype="f4")
+      if not pyNc: nc_leftSlope._FillValue =float(self.missingNumber)
+
+    if varsToSave=='all' or "rightSlope_noDA" in varsToSave:
+      nc_rightSlope_noDA = cdfFile.createVariable('rightSlope_noDA', 'f',ncShape2D,**fillVDict)
+      nc_rightSlope_noDA.units = "m/s"
+      nc_rightSlope_noDA[:] = np.array(self.rightSlope_noDA,dtype="f4")
+      if not pyNc: nc_rightSlope_noDA._FillValue =float(self.missingNumber)
+      
+    if varsToSave=='all' or "rightSlope" in varsToSave:
+      nc_rightSlope = cdfFile.createVariable('rightSlope', 'f',ncShape2D,**fillVDict)
+      nc_rightSlope.units = "m/s"
+      nc_rightSlope[:] = np.array(self.rightSlope,dtype="f4")
+      if not pyNc: nc_rightSlope._FillValue =float(self.missingNumber)
 
     if varsToSave=='all' or "W_noDA" in varsToSave:
       nc_w_noDA = cdfFile.createVariable('W_noDA', 'f',ncShape2D,**fillVDict)
@@ -1865,7 +1906,7 @@ class mrrProcessedData:
     print("writing %s ..."%(fileOut))
     #Attributes
     cdfFile.history = 'Created ' + str(time.ctime(time.time()))
-    cdfFile.source = 'Created by '+author
+    cdfFile.source = 'Created by '+author+ ' with IMProToo v'+ __version__
     cdfFile.mrrHeader = self.header
     cdfFile.description = description
     
@@ -2211,7 +2252,7 @@ class mrrRawData:
     print("writing %s ..."%(fileOut))
     #Attributes
     cdfFile.history = 'Created ' + str(time.ctime(time.time()))
-    cdfFile.source = 'Created by '+author
+    cdfFile.source = 'Created by '+author+ ' with IMProToo v'+ __version__
     cdfFile.mrrHeader = self.header
     cdfFile.description = description
     cdfFile.mrrCalibrationConstant = self.mrrRawCC

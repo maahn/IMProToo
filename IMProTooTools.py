@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 '''
-ImProToo
-Innominate MRR Processing Tool
+IMProToo
+Improved MRR Processing Tool
 
-Python toolkit to read and write MRR Data. Raw Data, Average and Instantaneous
+Python toolkit to read write and process MRR Data. Raw Data, Average and Instantaneous
 Data are supported.
 
 This file includes some helper functions
@@ -23,6 +23,11 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+
+
+IMProTooTools: various helper functions
+
+
 '''
 
 import numpy as np
@@ -31,11 +36,14 @@ import datetime
 import calendar
 import warnings
 
-warnings.filterwarnings('always', '.*', UserWarning,)
+#warnings.filterwarnings('always', '.*', UserWarning,)
 
 
 def getManualQualityArray(inputFile,timeVector):
-  startTimes, endTimes, comments = _readQualityFile(inputFile)
+  '''
+  returns quality array for timevector using inputFile. See readQualityFile for details about inputFile.
+  '''
+  startTimes, endTimes, comments = readQualityFile(inputFile)
   quality = np.zeros(timeVector.shape,dtype=bool)
   for startTime, endTime in zip(startTimes,endTimes):
     startTime = date2unix(startTime)
@@ -45,9 +53,9 @@ def getManualQualityArray(inputFile,timeVector):
   
 
   
-def _readQualityFile(inputFile):
+def readQualityFile(inputFile):
   '''
-  reads manual quality control files, format is in ancient 'Hatpro" format:
+  reads manual quality control files, format is like ancient 'Hatpro" format:
   
   file format is:
   date, no of entries for this day, starttime (00.00 - 23:59), endtime (00:01 - 24:00), comment
@@ -108,9 +116,16 @@ def _readQualityFile(inputFile):
 
     
 def date2unix(date):
+  '''
+  converts datetime object to seconds since 01-01-1970
+  '''
   return calendar.timegm(date.timetuple())
 
 def unix2date(unix):
+  '''
+  converts seconds since 01-01-1970 to datetime object
+  '''
+  
   return datetime.datetime.utcfromtimestamp(unix)   
   
   
