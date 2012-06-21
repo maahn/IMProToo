@@ -39,11 +39,11 @@ import sys
 
 import IMProTooTools
 
-__version__ = "0.95_10"
+__version__ = "0.96"
 
 class MrrZe:
   '''
-  calculates the 'real' MRR Ze from MRR raw data. The spectra are noise corrected and dealiased
+  class to calculate the 'real' MRR Ze from MRR raw data. The spectra are noise corrected and dealiased. see batch_convert_rawData.py for exemplarily use
   '''
   warnings.filterwarnings('always','.*', UserWarning,)
 

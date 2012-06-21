@@ -8,7 +8,7 @@ use: python batch_makeQuicklooks.py pathIn pathOut site
 
 requires:
 
-numpy, matplotlib, python-netcdf4 or python-netcdf
+numpy, matplotlib, netcdf4-python or python-netcdf
 
 '''
 
