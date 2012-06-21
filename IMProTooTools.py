@@ -29,7 +29,7 @@ IMProTooTools: various helper functions
 
 
 '''
-
+from __future__ import division
 import numpy as np
 import time
 import datetime
@@ -182,7 +182,7 @@ def quantile(x, q,  qtype = 7, issorted = False):
   else:
       return y[j] + (y[j+1]- y[j])* (c + d * g)    
 
-def _oneD2twoD(vector,shape2,axis):
+def oneD2twoD(vector,shape2,axis):
   '''
   helper function to convert 1D to 2D data
   '''
@@ -198,3 +198,24 @@ def _oneD2twoD(vector,shape2,axis):
     raise ValueError("wrong axis")
   return matrix
   
+def limitMaInidces(iArray,max):
+  '''
+  helper function to limit indices to certain interval
+  lower limit 0
+  max in python style -> actuallay max-1
+  
+  '''
+  reArray = np.ma.masked_all_like(iArray.ravel())
+  shape = iArray.shape
+  for n,i in enumerate(iArray.ravel()):
+    if i >= max:
+      reArray[n] = i - max
+    elif i < 0 :
+      reArray[n] = i + max
+    else:
+      reArray[n] = i
+  return reArray.reshape(shape)
+
+   
+      
+    
