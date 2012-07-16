@@ -65,6 +65,8 @@ class MrrZe:
     self.co["lamb"] = 299792458. / self.co["mrrFrequency"] 
     #mrr calibration constant
     self.co["mrrCalibConst"] = rawData.mrrRawCC
+    #mrr measuring angle in deg, 90deg = zenith, 0deg = horizontal. Can be either float OR array of length t!
+    self.co["mrrMeasuringAngle"] = 90.
 
     #do not change these values, unless you have a non standard MRR!    
     #nyquist range minimum
@@ -192,7 +194,12 @@ class MrrZe:
     self._shape3D = np.shape(self.rawSpectrum)
         
     self.qual = dict()
-        
+    
+    #make array of sin value out of angle
+    mrrMeasuringAngleFaktor = np.sin(np.ones(self.no_t,dtype=float)*self.co["mrrMeasuringAngle"]*(np.pi/180.))
+    #mrrMeasuringAngle = alpha, masured = a, real vel = v:
+    #sin(alpha) = a/v
+    
     return  
       
   def averageSpectra(self,averagingTime):
@@ -432,7 +439,7 @@ class MrrZe:
     else: 
       pass
     self.eta, self.Ze, self.W, self.etaNoiseAve, self.etaNoiseStd, self.specWidth, self.skewness, self.kurtosis, self.peakVelLeftBorder, self.peakVelRightBorder, self.leftSlope, self.rightSlope = self._calcEtaZeW(self.rawSpectrum,self.H,self.specVel3D,self.specNoise,self.specNoise_std)
-    #maek bin mask out of quality information
+    #make bin mask out of quality information
     self.qualityBin, self.qualityDesc = self.getQualityBinArray(self.qual)
     return
 
@@ -881,7 +888,7 @@ class MrrZe:
     allPeaksZe = dict()
     #get velocities of spectrum. we start negative, because first guess height is always defualt height of most right bin of peak
     velMe = np.array(list(self.co["nyqVel"] - self.co["widthSpectrum"]*self.co["nyqVdelta"] )+list(self.co["nyqVel"])) 
- 
+    
     for t in np.arange(self.no_t):
       completeSpectrum = self.rawSpectrum[t].ravel()
 
@@ -1410,7 +1417,7 @@ class MrrZe:
     else:
             raise ValueError("Unknown nc form "+ncForm)
       
-    if pyNc: cdfFile = nc.Dataset(fname,"w",ncForm)
+    if pyNc: cdfFile = nc.Dataset(fname,"w",format=ncForm)
     else: cdfFile = nc.NetCDFFile(fname,"w")
     
     #write meta data
@@ -1436,55 +1443,63 @@ class MrrZe:
     if pyNc: fillVDict["fill_value"] = self.missingNumber
     
     nc_time = cdfFile.createVariable('time','i',('time',),**fillVDict)
+    nc_time.description = "measurement time. Following Meteks convention, the dataset at e.g. 11:55 contains all recorded raw between 11:54:00 and 11:54:59 (if delta t = 60s)!"    
     nc_time.units = 'seconds since 1970-01-01'
     nc_time[:] = np.array(self.time.filled(self.missingNumber),dtype="i4")
-    if not pyNc: nc_time._FillValue =int(self.missingNumber)
+    #commented because of Ubuntu bug: https://bugs.launchpad.net/ubuntu/+source/python-scientific/+bug/1005571
+    #if not pyNc: nc_time._FillValue =int(self.missingNumber)
   
     nc_range = cdfFile.createVariable('range','i',('range',),**fillVDict)#= missingNumber)
+    nc_range.description = "range bins"
     nc_range.units = '#'
     nc_range[:] = np.arange(self.co["minH"],self.co["maxH"]+1,dtype="i4")
-    if not pyNc: nc_range._FillValue =int(self.missingNumber)
+    #if not pyNc: nc_range._FillValue =int(self.missingNumber)
     
     nc_velocity = cdfFile.createVariable('velocity','f',('velocity',),**fillVDict)
+    nc_velocity.description ="Doppler velocity bins. If dealiasing is applied, the spectra are triplicated"    
     nc_velocity.units = 'm/s'
     nc_velocity[:] = np.array(self.specVel,dtype="f4")
-    if not pyNc: nc_velocity._FillValue =float(self.missingNumber)
+    #if not pyNc: nc_velocity._FillValue =float(self.missingNumber)
     
     if self.co["dealiaseSpectrum_saveAlsoNonDealiased"]: 
       nc_velocity_noDA = cdfFile.createVariable('velocity_noDA','f',('velocity_noDA',),**fillVDict)
+      nc_velocity_noDA.description ="Original, non dealiased, Doppler velocity bins."   
       nc_velocity_noDA.units = 'm/s'
       nc_velocity_noDA[:] = np.array(self.specVel_noDA,dtype="f4")
-      if not pyNc: nc_velocity_noDA._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_velocity_noDA._FillValue =float(self.missingNumber)
 
     
     nc_height = cdfFile.createVariable('height','f',ncShape2D,**fillVDict)#= missingNumber)
+    nc_height.description ="height above instrument"    
     nc_height.units = 'm'
     nc_height[:] = np.array(self.H.filled(self.missingNumber),dtype="f4")
-    if not pyNc: nc_height._FillValue =float(self.missingNumber)
+    #if not pyNc: nc_height._FillValue =float(self.missingNumber)
     
-    if varsToSave=='all' or "eta_noDA" in varsToSave:
+    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "eta_noDA" in varsToSave:
       nc_eta_noDA = cdfFile.createVariable('eta_noDA', 'f',ncShape3D_noDA,**fillVDict)
+      nc_eta_noDA.description ="spectral reflectivities NOT dealiased"
       nc_eta_noDA.units = "1/m"
       nc_eta_noDA[:] = np.array(self.eta_noDA.data,dtype="f4")
-      if not pyNc: nc_eta_noDA._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_eta_noDA._FillValue =float(self.missingNumber)
 
       nc_etaMask_noDA = cdfFile.createVariable('etaMask_noDA', 'i',ncShape3D_noDA,**fillVDict)
-      nc_etaMask_noDA.description = "0: signal, 1:noise"
+      nc_etaMask_noDA.description = "noise mask of eta NOT dealiased, 0: signal, 1:noise"
       nc_etaMask_noDA.units = "bool"
       nc_etaMask_noDA[:] = np.array(np.array(self.eta_noDA.mask,dtype=int),dtype="i4")
-      if not pyNc: nc_etaMask_noDA._FillValue =int(self.missingNumber)
+      #if not pyNc: nc_etaMask_noDA._FillValue =int(self.missingNumber)
 
     if varsToSave=='all' or "eta" in varsToSave:
       nc_eta = cdfFile.createVariable('eta', 'f',ncShape3D,**fillVDict)
+      nc_eta.description ="spectral reflectivities. if dealiasing is applied, the spectra are triplicated, thus up to three peaks can occur from -12 to +24 m/s. However, only one peak is not masked in etaMask"
       nc_eta.units = "1/m"
       nc_eta[:] = np.array(self.eta.data,dtype="f4")
-      if not pyNc: nc_eta._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_eta._FillValue =float(self.missingNumber)
 
       nc_etaMask = cdfFile.createVariable('etaMask', 'i',ncShape3D,**fillVDict)
-      nc_etaMask.description = "0: signal, 1:noise"
+      nc_etaMask.description = "noise mask of eta, 0: signal, 1:noise"
       nc_etaMask.units = "bool"
       nc_etaMask[:] = np.array(np.array(self.eta.mask,dtype=int),dtype="i4")
-      if not pyNc: nc_etaMask._FillValue =int(self.missingNumber)
+      #if not pyNc: nc_etaMask._FillValue =int(self.missingNumber)
 
     if varsToSave=='all' or "quality" in varsToSave:
       qualArray, qualDescription = self.getQualityBinArray(self.qual)
@@ -1493,140 +1508,162 @@ class MrrZe:
       nc_qual.description = qualDescription
       nc_qual.units = "bin"
       nc_qual[:] = np.array(qualArray,dtype="i4")
-      if not pyNc: nc_qual._FillValue =int(self.missingNumber)
+      #if not pyNc: nc_qual._FillValue =int(self.missingNumber)
 
      
     if varsToSave=='all' or "TF" in varsToSave:
       nc_TF = cdfFile.createVariable('TF', 'f',ncShape2D,**fillVDict)
+      nc_TF.description="Transfer Function (see Metek's documentation)"
       nc_TF.units = "-"
       nc_TF[:] = np.array(self.TF.filled(self.missingNumber),dtype="f4")
-      if not pyNc: nc_TF._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_TF._FillValue =float(self.missingNumber)
 
-    if varsToSave=='all' or "Ze_noDA" in varsToSave:
+    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "Ze_noDA" in varsToSave:
       nc_ze_noDA = cdfFile.createVariable('Ze_noDA', 'f',ncShape2D,**fillVDict)
+      nc_ze_noDA.description="reflectivity of the most significant peak, not dealiased"
       nc_ze_noDA.units = "dBz"
       nc_ze_noDA[:] = np.array(self.Ze_noDA,dtype="f4")
-      if not pyNc: nc_ze_noDA._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_ze_noDA._FillValue =float(self.missingNumber)
       
     if varsToSave=='all' or "Ze" in varsToSave:
       nc_ze = cdfFile.createVariable('Ze', 'f',ncShape2D,**fillVDict)
+      nc_ze.description="reflectivity of the most significant peak"
       nc_ze.units = "dBz"
       nc_ze[:] = np.array(self.Ze,dtype="f4")
-      if not pyNc: nc_ze._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_ze._FillValue =float(self.missingNumber)
 
-    if varsToSave=='all' or "specWidth_noDA" in varsToSave:
+    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "specWidth_noDA" in varsToSave:
       nc_specWidth_noDA = cdfFile.createVariable('spectralWidth_noDA', 'f',ncShape2D,**fillVDict)
+      nc_specWidth_noDA.description="spectral width of the most significant peak, not dealiased"
       nc_specWidth_noDA.units = "m/s"
       nc_specWidth_noDA[:] = np.array(self.specWidth_noDA,dtype="f4")
-      if not pyNc: nc_specWidth_noDA._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_specWidth_noDA._FillValue =float(self.missingNumber)
       
     if varsToSave=='all' or "specWidth" in varsToSave:
       nc_specWidth = cdfFile.createVariable('spectralWidth', 'f',ncShape2D,**fillVDict)
+      nc_specWidth.description="spectral width of the most significant peak"
       nc_specWidth.units = "m/s"
       nc_specWidth[:] = np.array(self.specWidth,dtype="f4")
-      if not pyNc: nc_specWidth._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_specWidth._FillValue =float(self.missingNumber)
 
-    if varsToSave=='all' or "skewness_noDA" in varsToSave:
+    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "skewness_noDA" in varsToSave:
       nc_skewness_noDA = cdfFile.createVariable('skewness_noDA', 'f',ncShape2D,**fillVDict)
+      nc_skewness_noDA.description="Skewness of the most significant peak, not dealiased"
       nc_skewness_noDA.units = "m/s"
       nc_skewness_noDA[:] = np.array(self.skewness_noDA,dtype="f4")
-      if not pyNc: nc_skewness_noDA._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_skewness_noDA._FillValue =float(self.missingNumber)
       
     if varsToSave=='all' or "skewness" in varsToSave:
       nc_skewness = cdfFile.createVariable('skewness', 'f',ncShape2D,**fillVDict)
+      nc_skewness.description="Skewness of the most significant peak"
       nc_skewness.units = "m/s"
       nc_skewness[:] = np.array(self.skewness,dtype="f4")
-      if not pyNc: nc_skewness._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_skewness._FillValue =float(self.missingNumber)
 
-    if varsToSave=='all' or "kurtosis_noDA" in varsToSave:
+    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "kurtosis_noDA" in varsToSave:
       nc_kurtosis_noDA = cdfFile.createVariable('kurtosis_noDA', 'f',ncShape2D,**fillVDict)
+      nc_kurtosis_noDA.description="kurtosis of the most significant peak, not dealiased"
       nc_kurtosis_noDA.units = "m/s"
       nc_kurtosis_noDA[:] = np.array(self.kurtosis_noDA,dtype="f4")
-      if not pyNc: nc_kurtosis_noDA._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_kurtosis_noDA._FillValue =float(self.missingNumber)
       
     if varsToSave=='all' or "kurtosis" in varsToSave:
       nc_kurtosis = cdfFile.createVariable('kurtosis', 'f',ncShape2D,**fillVDict)
+      nc_kurtosis.description="kurtosis of the most significant peak"
       nc_kurtosis.units = "m/s"
       nc_kurtosis[:] = np.array(self.kurtosis,dtype="f4")
-      if not pyNc: nc_kurtosis._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_kurtosis._FillValue =float(self.missingNumber)
 
-    if varsToSave=='all' or "peakVelLeftBorder_noDA" in varsToSave:
+    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "peakVelLeftBorder_noDA" in varsToSave:
       nc_peakVelLeftBorder_noDA = cdfFile.createVariable('peakVelLeftBorder_noDA', 'f',ncShape2D,**fillVDict)
+      nc_peakVelLeftBorder_noDA.description="Doppler velocity of the left border of the peak, not dealiased"
       nc_peakVelLeftBorder_noDA.units = "m/s"
       nc_peakVelLeftBorder_noDA[:] = np.array(self.peakVelLeftBorder_noDA,dtype="f4")
-      if not pyNc: nc_peakVelLeftBorder_noDA._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_peakVelLeftBorder_noDA._FillValue =float(self.missingNumber)
       
     if varsToSave=='all' or "peakVelLeftBorder" in varsToSave:
       nc_peakVelLeftBorder = cdfFile.createVariable('peakVelLeftBorder', 'f',ncShape2D,**fillVDict)
+      nc_peakVelLeftBorder.description="Doppler velocity of the left border of the peak"
       nc_peakVelLeftBorder.units = "m/s"
       nc_peakVelLeftBorder[:] = np.array(self.peakVelLeftBorder,dtype="f4")
-      if not pyNc: nc_peakVelLeftBorder._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_peakVelLeftBorder._FillValue =float(self.missingNumber)
 
-    if varsToSave=='all' or "peakVelRightBorder_noDA" in varsToSave:
+    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "peakVelRightBorder_noDA" in varsToSave:
       nc_peakVelRightBorder_noDA = cdfFile.createVariable('peakVelRightBorder_noDA', 'f',ncShape2D,**fillVDict)
+      nc_peakVelRightBorder_noDA.description="Doppler velocity of the right border of the peak, not dealiased"
       nc_peakVelRightBorder_noDA.units = "m/s"
       nc_peakVelRightBorder_noDA[:] = np.array(self.peakVelRightBorder_noDA,dtype="f4")
-      if not pyNc: nc_peakVelRightBorder_noDA._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_peakVelRightBorder_noDA._FillValue =float(self.missingNumber)
       
     if varsToSave=='all' or "peakVelRightBorder" in varsToSave:
       nc_peakVelRightBorder = cdfFile.createVariable('peakVelRightBorder', 'f',ncShape2D,**fillVDict)
+      nc_peakVelRightBorder.description="Doppler velocity of the right border of the peak"
       nc_peakVelRightBorder.units = "m/s"
       nc_peakVelRightBorder[:] = np.array(self.peakVelRightBorder,dtype="f4")
-      if not pyNc: nc_peakVelRightBorder._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_peakVelRightBorder._FillValue =float(self.missingNumber)
 
-    if varsToSave=='all' or "leftSlope_noDA" in varsToSave:
+    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "leftSlope_noDA" in varsToSave:
       nc_leftSlope_noDA = cdfFile.createVariable('leftSlope_noDA', 'f',ncShape2D,**fillVDict)
+      nc_leftSlope_noDA.description="Slope at the left side of the peak, not dealiased"
       nc_leftSlope_noDA.units = "m/s"
       nc_leftSlope_noDA[:] = np.array(self.leftSlope_noDA,dtype="f4")
-      if not pyNc: nc_leftSlope_noDA._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_leftSlope_noDA._FillValue =float(self.missingNumber)
       
     if varsToSave=='all' or "leftSlope" in varsToSave:
       nc_leftSlope = cdfFile.createVariable('leftSlope', 'f',ncShape2D,**fillVDict)
+      nc_leftSlope.description="Slope at the left side of the peak"
       nc_leftSlope.units = "m/s"
       nc_leftSlope[:] = np.array(self.leftSlope,dtype="f4")
-      if not pyNc: nc_leftSlope._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_leftSlope._FillValue =float(self.missingNumber)
 
-    if varsToSave=='all' or "rightSlope_noDA" in varsToSave:
+    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "rightSlope_noDA" in varsToSave:
       nc_rightSlope_noDA = cdfFile.createVariable('rightSlope_noDA', 'f',ncShape2D,**fillVDict)
+      nc_rightSlope_noDA.description="Slope at the right side of the peak, not dealiased"
       nc_rightSlope_noDA.units = "m/s"
       nc_rightSlope_noDA[:] = np.array(self.rightSlope_noDA,dtype="f4")
-      if not pyNc: nc_rightSlope_noDA._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_rightSlope_noDA._FillValue =float(self.missingNumber)
       
     if varsToSave=='all' or "rightSlope" in varsToSave:
       nc_rightSlope = cdfFile.createVariable('rightSlope', 'f',ncShape2D,**fillVDict)
+      nc_rightSlope.description="Slope at the right side of the peak"
       nc_rightSlope.units = "m/s"
       nc_rightSlope[:] = np.array(self.rightSlope,dtype="f4")
-      if not pyNc: nc_rightSlope._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_rightSlope._FillValue =float(self.missingNumber)
 
-    if varsToSave=='all' or "W_noDA" in varsToSave:
+    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "W_noDA" in varsToSave:
       nc_w_noDA = cdfFile.createVariable('W_noDA', 'f',ncShape2D,**fillVDict)
+      nc_w_noDA.description="Mean Doppler Velocity of the most significant peak, not dealiased"
       nc_w_noDA.units = "m/s"
       nc_w_noDA[:] = np.array(self.W_noDA,dtype="f4")
-      if not pyNc: nc_w_noDA._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_w_noDA._FillValue =float(self.missingNumber)
       
     if varsToSave=='all' or "W" in varsToSave:
       nc_w = cdfFile.createVariable('W', 'f',ncShape2D,**fillVDict)
+      nc_w.description="Mean Doppler Velocity of the most significant peak"
       nc_w.units = "m/s"
       nc_w[:] = np.array(self.W,dtype="f4")
-      if not pyNc: nc_w._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_w._FillValue =float(self.missingNumber)
 
     if varsToSave=='all' or "etaNoiseAve" in varsToSave:
       nc_noiseAve = cdfFile.createVariable('etaNoiseAve', 'f',ncShape2D,**fillVDict)
+      nc_noiseAve.description="mean noise of one Doppler Spectrum in the same units as eta, never dealiased"
       nc_noiseAve.units = "1/m"
       nc_noiseAve[:] = np.array(self.etaNoiseAve,dtype="f4")
-      if not pyNc: nc_noiseAve._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_noiseAve._FillValue =float(self.missingNumber)
       
     if varsToSave=='all' or "etaNoiseStd" in varsToSave:
       nc_noiseStd = cdfFile.createVariable('etaNoiseStd', 'f',ncShape2D,**fillVDict)
+      nc_noiseStd.description="std of noise of one Doppler Spectrum in the same units as eta, never dealiased"
       nc_noiseStd.units = "1/m"
       nc_noiseStd[:] = np.array(self.etaNoiseStd,dtype="f4")
-      if not pyNc: nc_noiseStd._FillValue =float(self.missingNumber)   
+      #if not pyNc: nc_noiseStd._FillValue =float(self.missingNumber)   
       
     if varsToSave=='all' or "SNR" in varsToSave:
       nc_SNR = cdfFile.createVariable('SNR', 'f',ncShape2D,**fillVDict)
+      nc_SNR.description="signal to noise ratio of the most significant peak, never dealiased!"      
       nc_SNR.units = "dB"
       nc_SNR[:] = np.array(self.SNR,dtype="f4")
-      if not pyNc: nc_SNR._FillValue =float(self.missingNumber)
+      #if not pyNc: nc_SNR._FillValue =float(self.missingNumber)
           
     cdfFile.close()
     return
@@ -1650,7 +1687,8 @@ class mrrProcessedData:
 
     @parameter fname (str): Filename, wildcards allowed!
     @parameter debugLimit (int): stop after debugLimit timestamps
-
+    @parameter maskData (bool): mask nan's in arrays
+    
     No return, but provides MRR dataset variables 
     """
     #some helper functions!
@@ -1753,7 +1791,7 @@ class mrrProcessedData:
             if ( re.search("UTC", line) == None):
               sys.exit("Warning, must be UTC!")
             date = datetime.datetime(year = 2000+int(asciiDate[0:2]), month = int(asciiDate[2:4]), day = int(asciiDate[4:6]), hour = int(asciiDate[6:8]), minute = int(asciiDate[8:10]), second = int(asciiDate[10:12]))
-            date = int(date2unix(date))
+            date = int(IMProTooTools.date2unix(date))
             tmpList.append(line)
             prevDate = date
         else:
@@ -1935,7 +1973,7 @@ class mrrProcessedData:
     else:
       raise ValueError("Unknown nc form "+netcdfFormat)
       
-    if pyNc: cdfFile = nc.Dataset(fileOut,"w",netcdfFormat)
+    if pyNc: cdfFile = nc.Dataset(fileOut,"w",format=netcdfFormat)
     else: cdfFile = nc.NetCDFFile(fileOut,"w")
     
     fillVDict = dict()
@@ -1954,83 +1992,83 @@ class mrrProcessedData:
     cdfFile.createDimension('MRR rangegate',31)
     cdfFile.createDimension('time', None) #allows Multifile read
     cdfFile.createDimension('MRR spectralclass', 64)
-    
-    nc_times = cdfFile.createVariable('time','i4',('time',),**fillVDict)
-    nc_ranges = cdfFile.createVariable('MRR rangegate','i4',('time', 'MRR rangegate',),**fillVDict)
-    nc_classes = cdfFile.createVariable('MRR spectralclass','i4',('MRR spectralclass',))
+
+    nc_times = cdfFile.createVariable('time','i',('time',),**fillVDict)
+    nc_ranges = cdfFile.createVariable('MRR rangegate','f',('time', 'MRR rangegate',),**fillVDict)
+    nc_classes = cdfFile.createVariable('MRR spectralclass','i',('MRR spectralclass',))
     
     nc_times.units = 'UNIX Time Stamp'
     nc_ranges.units = 'm'
     nc_classes.units = 'none'
     
     #Create Variables
-    nc_tf = cdfFile.createVariable('MRR_TF','f4',('time','MRR rangegate',),**fillVDict)
+    nc_tf = cdfFile.createVariable('MRR_TF','f',('time','MRR rangegate',),**fillVDict)
     nc_tf.units = 'none'
     
-    nc_f  = cdfFile.createVariable('MRR_F','f4',('time','MRR rangegate','MRR spectralclass',),**fillVDict)
+    nc_f  = cdfFile.createVariable('MRR_F','f',('time','MRR rangegate','MRR spectralclass',),**fillVDict)
     nc_f.units = 'dB'
     
-    nc_d  = cdfFile.createVariable('MRR_D','f4',('time','MRR rangegate','MRR spectralclass',),**fillVDict)
+    nc_d  = cdfFile.createVariable('MRR_D','f',('time','MRR rangegate','MRR spectralclass',),**fillVDict)
     nc_d.units = 'm^-3 mm^-1'
     
-    nc_n  = cdfFile.createVariable('MRR_N','f4',('time','MRR rangegate','MRR spectralclass',),**fillVDict)
+    nc_n  = cdfFile.createVariable('MRR_N','f',('time','MRR rangegate','MRR spectralclass',),**fillVDict)
     nc_n.units = '#'
     
-    nc_k  = cdfFile.createVariable('MRR_K','f4',('time','MRR rangegate',),**fillVDict)
+    nc_k  = cdfFile.createVariable('MRR_K','f',('time','MRR rangegate',),**fillVDict)
     nc_k.units = 'dB'
     
-    nc_capitalZ  = cdfFile.createVariable('MRR_Capital_Z','f4',('time','MRR rangegate',),**fillVDict)
+    nc_capitalZ  = cdfFile.createVariable('MRR_Capital_Z','f',('time','MRR rangegate',),**fillVDict)
     nc_capitalZ.units = 'dBz'
     
-    nc_smallz  = cdfFile.createVariable('MRR_Small_z','f4',('time','MRR rangegate',),**fillVDict)
+    nc_smallz  = cdfFile.createVariable('MRR_Small_z','f',('time','MRR rangegate',),**fillVDict)
     nc_smallz.units = 'dBz'
     
-    nc_pia  = cdfFile.createVariable('MRR_PIA','f4',('time','MRR rangegate',),**fillVDict)
+    nc_pia  = cdfFile.createVariable('MRR_PIA','f',('time','MRR rangegate',),**fillVDict)
     nc_pia.units = 'dB'
     
-    nc_rr  = cdfFile.createVariable('MRR_RR','f4',('time','MRR rangegate',),**fillVDict)
+    nc_rr  = cdfFile.createVariable('MRR_RR','f',('time','MRR rangegate',),**fillVDict)
     nc_rr.units = 'mm/h'
     
-    nc_lwc  = cdfFile.createVariable('MRR_LWC','f4',('time','MRR rangegate',),**fillVDict)
+    nc_lwc  = cdfFile.createVariable('MRR_LWC','f',('time','MRR rangegate',),**fillVDict)
     nc_lwc.units = 'g/m^3'
     
-    nc_w  = cdfFile.createVariable('MRR_W','f4',('time','MRR rangegate',),**fillVDict)
+    nc_w  = cdfFile.createVariable('MRR_W','f',('time','MRR rangegate',),**fillVDict)
     nc_w.units = 'm/s'
     
     
     # fill dimensions
-    nc_classes[:] = np.arange(0,64,1)
-    nc_times[:] = self.mrrTimestamps
-    nc_ranges[:] = self.mrrH
+    nc_classes[:] = np.arange(0,64,1,dtype="i4")
+    nc_times[:] = np.array(self.mrrTimestamps,dtype="i4")
+    nc_ranges[:] = np.array(self.mrrH,dtype="f4")
 
     #fill data
-    nc_tf[:] = self.mrrTF
-    nc_f[:] = self.mrrF
-    nc_d[:] = self.mrrD
-    nc_n[:] = self.mrrN
-    nc_k[:] = self.mrrK
-    nc_capitalZ[:] = self.mrrCapitalZ
-    nc_smallz[:] = self.mrrSmallz
-    nc_pia[:] = self.mrrPIA
-    nc_rr[:] = self.mrrRR
-    nc_lwc[:] = self.mrrLWC
-    nc_w[:] = self.mrrW
+    nc_tf[:] = np.array(self.mrrTF,dtype="f4")
+    nc_f[:] = np.array(self.mrrF,dtype="f4")
+    nc_d[:] = np.array(self.mrrD,dtype="f4")
+    nc_n[:] = np.array(self.mrrN,dtype="f4")
+    nc_k[:] = np.array(self.mrrK,dtype="f4")
+    nc_capitalZ[:] = np.array(self.mrrCapitalZ,dtype="f4")
+    nc_smallz[:] = np.array(self.mrrSmallz,dtype="f4")
+    nc_pia[:] = np.array(self.mrrPIA,dtype="f4")
+    nc_rr[:] = np.array(self.mrrRR,dtype="f4")
+    nc_lwc[:] = np.array(self.mrrLWC,dtype="f4")
+    nc_w[:] = np.array(self.mrrW,dtype="f4")
     
-    
-    if not pyNc: 
-      nc_times._FillValue =float(self.missingNumber)
-      nc_ranges._FillValue =float(self.missingNumber)  
-      nc_tf._FillValue =float(self.missingNumber)
-      nc_f._FillValue =float(self.missingNumber)      
-      nc_d._FillValue =float(self.missingNumber)     
-      nc_n._FillValue =float(self.missingNumber)
-      nc_k._FillValue =float(self.missingNumber)  
-      nc_capitalZ._FillValue =float(self.missingNumber)
-      nc_smallz._FillValue =float(self.missingNumber)      
-      nc_pia._FillValue =float(self.missingNumber)     
-      nc_rr._FillValue =float(self.missingNumber)
-      nc_lwc._FillValue =float(self.missingNumber)  
-      nc_w._FillValue =float(self.missingNumber)
+    #commented because of Ubuntu bug: https://bugs.launchpad.net/ubuntu/+source/python-scientific/+bug/1005571
+    #if not pyNc: 
+      ##import pdb;pdb.set_trace()
+      #nc_ranges._FillValue =float(self.missingNumber)  
+      #nc_tf._FillValue =float(self.missingNumber)
+      #nc_f._FillValue =float(self.missingNumber)      
+      #nc_d._FillValue =float(self.missingNumber)     
+      #nc_n._FillValue =float(self.missingNumber)
+      #nc_k._FillValue =float(self.missingNumber)  
+      #nc_capitalZ._FillValue =float(self.missingNumber)
+      #nc_smallz._FillValue =float(self.missingNumber)      
+      #nc_pia._FillValue =float(self.missingNumber)     
+      #nc_rr._FillValue =float(self.missingNumber)
+      #nc_lwc._FillValue =float(self.missingNumber)  
+      #nc_w._FillValue =float(self.missingNumber)
     
     
     cdfFile.close()
@@ -2327,7 +2365,7 @@ class mrrRawData:
     else:
       raise ValueError("Unknown nc form "+netcdfFormat)
       
-    if pyNc: cdfFile = nc.Dataset(fileOut,"w",netcdfFormat)
+    if pyNc: cdfFile = nc.Dataset(fileOut,"w",format=netcdfFormat)
     else: cdfFile = nc.NetCDFFile(fileOut,"w")
     
     print("writing %s ..."%(fileOut))
@@ -2347,43 +2385,43 @@ class mrrRawData:
     cdfFile.createDimension('time', None) #allows Multifile read
     cdfFile.createDimension('MRR spectralclass', 64)
     
-    nc_times = cdfFile.createVariable('MRR time','i4',('time',),**fillVDict)
-    nc_ranges = cdfFile.createVariable('MRR rangegate','i4',('time', 'MRR rangegate',))
-    nc_classes = cdfFile.createVariable('MRR spectralclass','i4',('MRR spectralclass',),**fillVDict)
+    nc_times = cdfFile.createVariable('MRR time','i',('time',),**fillVDict)
+    nc_ranges = cdfFile.createVariable('MRR rangegate','f',('time', 'MRR rangegate',))
+    nc_classes = cdfFile.createVariable('MRR spectralclass','i',('MRR spectralclass',),**fillVDict)
     
     nc_times.units = 'UNIX Time Stamp'
     nc_ranges.units = 'm'
     nc_classes.units = 'none'
     
     #Create Variables
-    nc_tf = cdfFile.createVariable('MRR_TF','f4',('time','MRR rangegate',),**fillVDict)
+    nc_tf = cdfFile.createVariable('MRR_TF','f',('time','MRR rangegate',),**fillVDict)
     nc_tf.units = 'none'
 
     
-    nc_spectra  = cdfFile.createVariable('MRR_Spectra','f4',('time','MRR rangegate','MRR spectralclass',),**fillVDict)
+    nc_spectra  = cdfFile.createVariable('MRR_Spectra','f',('time','MRR rangegate','MRR spectralclass',),**fillVDict)
     nc_spectra.units = 'none'
 
     
-    nc_noSpec  = cdfFile.createVariable('MRR_NoSpectra','i4',('time',),**fillVDict)
+    nc_noSpec  = cdfFile.createVariable('MRR_NoSpectra','i',('time',),**fillVDict)
     nc_noSpec.units = 'none'
 
     
     # fill dimensions
-    nc_classes[:] = np.arange(0,64,1)
-    nc_times[:] = self.mrrRawTime
-    nc_ranges[:] = self.mrrRawHeight
+    nc_classes[:] = np.array(np.arange(0,64,1),dtype="i4")
+    nc_times[:] = np.array(self.mrrRawTime,dtype="i4")
+    nc_ranges[:] = np.array(self.mrrRawHeight,dtype="f4")
 
     #fill data
-    nc_tf[:] = self.mrrRawTF
-    nc_spectra[:] = self.mrrRawSpectrum
-    nc_noSpec[:] = self.mrrRawNoSpec
-    
-    if not pyNc: 
-      nc_noSpec._FillValue =float(self.missingNumber)
-      nc_spectra._FillValue =float(self.missingNumber)      
-      nc_tf._FillValue =float(self.missingNumber)     
-      nc_times._FillValue =float(self.missingNumber)
-      nc_ranges._FillValue =float(self.missingNumber)      
+    nc_tf[:] = np.array(self.mrrRawTF,dtype="f4")
+    nc_spectra[:] = np.array(self.mrrRawSpectrum,dtype="f4")
+    nc_noSpec[:] = np.array(self.mrrRawNoSpec,dtype="i4")
+
+    #commented because of Ubuntu bug: https://bugs.launchpad.net/ubuntu/+source/python-scientific/+bug/1005571
+    #if not pyNc: 
+      #nc_noSpec._FillValue =int(self.missingNumber)
+      #nc_spectra._FillValue =float(self.missingNumber)      
+      #nc_tf._FillValue =float(self.missingNumber)     
+      #nc_ranges._FillValue =float(self.missingNumber)      
     
     cdfFile.close()
     print("done")
