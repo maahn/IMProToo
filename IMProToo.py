@@ -65,8 +65,6 @@ class MrrZe:
     self.co["lamb"] = 299792458. / self.co["mrrFrequency"] 
     #mrr calibration constant
     self.co["mrrCalibConst"] = rawData.mrrRawCC
-    #mrr measuring angle in deg, 90deg = zenith, 0deg = horizontal. Can be either float OR array of length t!
-    self.co["mrrMeasuringAngle"] = 90.
 
     #do not change these values, unless you have a non standard MRR!    
     #nyquist range minimum
@@ -194,11 +192,6 @@ class MrrZe:
     self._shape3D = np.shape(self.rawSpectrum)
         
     self.qual = dict()
-    
-    #make array of sin value out of angle
-    mrrMeasuringAngleFaktor = np.sin(np.ones(self.no_t,dtype=float)*self.co["mrrMeasuringAngle"]*(np.pi/180.))
-    #mrrMeasuringAngle = alpha, masured = a, real vel = v:
-    #sin(alpha) = a/v
     
     return  
       
@@ -1399,7 +1392,7 @@ class MrrZe:
     
     fname: str filename with path
     varsToSave list of variables of the profile to be saved. "all" saves all implmented ones
-    ncForm: str netcdf file format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package (NETCDF3_CLASSIC gives netcdf4 files for newer ubuntu versions!!) NETCDF3 takes the "old" Scientific.IO.NetCDF module, which is a bit more convinient to install
+    ncForm: str netcdf file format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package, NETCDF3 takes the "old" Scientific.IO.NetCDF module, which is a bit more convinient to install or as fall back option python-netcdf3
     '''
     
     #most syntax is identical, but there is one nasty difference regarding the fillValue...
@@ -1411,7 +1404,7 @@ class MrrZe:
                     import Scientific.IO.NetCDF as nc
                     pyNc = False
             except:
-                    #fallback for cheops cluster with the same syntax as netcdf4!
+                    #fallback for netcdf3 with the same syntax as netcdf4!
                     import netCDF3 as nc
                     pyNc = True
     else:
@@ -1955,7 +1948,8 @@ class mrrProcessedData:
     @parameter fileOut (str): netCDF file name
     @parameter author (str): Author for netCDF meta data (default:IMProToo)
     @parameter description (str): Description for NetCDF Metadata (default: empty)
-    @parameter netcdfFormat (str): netCDF Format (default:NETCDF3_CLASSIC)
+    @parameter netcdfFormat (str): netCDF Format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package, NETCDF3 takes the "old" Scientific.IO.NetCDF module, which is a bit more convinient to install or as fall back option python-netcdf3
+
 '''
 
    #most syntax between netcdf packages is identical, but there is one nasty difference regarding the fillValue...
@@ -2348,7 +2342,7 @@ class mrrRawData:
     @parameter fileOut (str): netCDF file name
     @parameter author (str): Author for netCDF meta data (default:IMProToo)
     @parameter description (str): Description for NetCDF Metadata (default: empty)
-    @parameter netcdfFormat (str): , possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package (NETCDF3_CLASSIC gives netcdf4 files for newer ubuntu versions!!) NETCDF3 takes the "old" Scientific.IO.NetCDF module, which is a bit more convinient or as fall back option python-netcdf3
+    @parameter netcdfFormat (str): netcdf format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package, NETCDF3 takes the "old" Scientific.IO.NetCDF module, which is a bit more convinient to install or as fall back option python-netcdf3
     '''
    #most syntax between netcdf packages is identical, but there is one nasty difference regarding the fillValue...
     if netcdfFormat in ["NETCDF3_CLASSIC", "NETCDF3_64BIT", "NETCDF4_CLASSIC", "NETCDF4"]:
