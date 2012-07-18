@@ -169,7 +169,7 @@ class MrrZe:
     #######netCDF options#######
     
     self.co["ncCreator"] = "IMProToo user"    
-    self.co["ncDescription"] = ""    
+    self.co["ncDescription"] = "MRR data processed with IMProToo"    
     
     #######end of settings#######    
 
@@ -509,7 +509,6 @@ class MrrZe:
     
     noiseMask = np.all(spectrum.mask,axis=-1)
     newMask = deepcopy(noiseMask)
-    #import pdb;pdb.set_trace()
     #make it bigger to cover edges for 5x5 test, 2 pixel border
     maxs = np.ma.masked_all((self.no_t+4,self.no_h+1))
     maxs[2:-2,2:-2] = np.ma.masked_array(np.ma.argmax(spectrum,axis=-1),noiseMask)[:,2:30]
@@ -1279,7 +1278,6 @@ class MrrZe:
     #transponieren um multiplizieren zu ermoeglichen!
     eta = (rawSpectra.data.T * np.array((self.co["mrrCalibConst"] * (heights**2 / deltaH)) / ( 1e20),dtype=float).T).T
     eta = np.ma.masked_array(eta,rawSpectra.mask)
-    #import pdb;pdb.set_trace()
     etaNoiseAve = noise * (self.co["mrrCalibConst"] * (heights**2 / deltaH)) / 1e20
     etaNoiseStd = noise_std * (self.co["mrrCalibConst"] * (heights**2 / deltaH)) / 1e20
     #calculate Ze
@@ -1333,7 +1331,7 @@ class MrrZe:
     binQual = np.zeros(self._shape2D,dtype=int)
     qualFac=dict()
     description = ''
-    description += 'usually these ones can be ignored: '
+    description += 'A) usually, the following erros can be ignored (no. is position of bit): '
     qualFac["interpolatedSpectrum"]                         = 0b1
     description += '1) spectrum interpolated around 0 and 12 m/s '
     
@@ -1351,7 +1349,7 @@ class MrrZe:
     
     
     
-    description += 'reasons why a spectrum does NOT contain a peak: '
+    description += 'B) reasons why a spectrum does NOT contain a peak: '
     qualFac["incompleteSpectrum"]                        = 0b10000000
     description += '8) spectrum was incompletely recorded '
     
@@ -1368,7 +1366,7 @@ class MrrZe:
     description += '12) peak removed, because too few neighbours show signal, too '
     
     
-    description += "thinks went seriously wrong, don't use this data "
+    description += "C) thinks went seriously wrong, don't use data with these codes"
     qualFac["peakMightBeIncomplete"]                        = 0b1000000000000000
     description += '16) peak is at the very border to bad data '
     
@@ -1411,11 +1409,15 @@ class MrrZe:
                     pyNc = True
     else:
             raise ValueError("Unknown nc form "+ncForm)
-      
+    
+    #option dealiaseSpectrum_saveAlsoNonDealiased makes only sence, if spectrum is really dealiased:
+    saveAlsoNonDealiased = self.co["dealiaseSpectrum_saveAlsoNonDealiased"] and self.co["dealiaseSpectrum"]
+    
+    
     if pyNc: cdfFile = nc.Dataset(fname,"w",format=ncForm)
     else: cdfFile = nc.NetCDFFile(fname,"w")
     
-    #write meta data
+    ##write meta data
     cdfFile.history = "Created by "+self.co["ncCreator"]+" at "+ datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
     cdfFile.description = self.co["ncDescription"]    
     cdfFile.author = self.co["ncCreator"]
@@ -1427,7 +1429,7 @@ class MrrZe:
     cdfFile.createDimension('time',int(self.no_t))
     cdfFile.createDimension('range',int(self.no_h))
     cdfFile.createDimension('velocity',int(self.no_v))
-    if self.co["dealiaseSpectrum_saveAlsoNonDealiased"]: cdfFile.createDimension('velocity_noDA',int(self.no_v_noDA))
+    if saveAlsoNonDealiased: cdfFile.createDimension('velocity_noDA',int(self.no_v_noDA))
     
     ncShape2D = ("time","range",)
     ncShape3D = ("time","range","velocity",)
@@ -1456,7 +1458,7 @@ class MrrZe:
     nc_velocity[:] = np.array(self.specVel,dtype="f4")
     #if not pyNc: nc_velocity._FillValue =float(self.missingNumber)
     
-    if self.co["dealiaseSpectrum_saveAlsoNonDealiased"]: 
+    if saveAlsoNonDealiased: 
       nc_velocity_noDA = cdfFile.createVariable('velocity_noDA','f',('velocity_noDA',),**fillVDict)
       nc_velocity_noDA.description ="Original, non dealiased, Doppler velocity bins."   
       nc_velocity_noDA.units = 'm/s'
@@ -1470,7 +1472,7 @@ class MrrZe:
     nc_height[:] = np.array(self.H.filled(self.missingNumber),dtype="f4")
     #if not pyNc: nc_height._FillValue =float(self.missingNumber)
     
-    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "eta_noDA" in varsToSave:
+    if (varsToSave=='all' and saveAlsoNonDealiased) or "eta_noDA" in varsToSave:
       nc_eta_noDA = cdfFile.createVariable('eta_noDA', 'f',ncShape3D_noDA,**fillVDict)
       nc_eta_noDA.description ="spectral reflectivities NOT dealiased"
       nc_eta_noDA.units = "1/m"
@@ -1513,7 +1515,7 @@ class MrrZe:
       nc_TF[:] = np.array(self.TF.filled(self.missingNumber),dtype="f4")
       #if not pyNc: nc_TF._FillValue =float(self.missingNumber)
 
-    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "Ze_noDA" in varsToSave:
+    if (varsToSave=='all' and saveAlsoNonDealiased) or "Ze_noDA" in varsToSave:
       nc_ze_noDA = cdfFile.createVariable('Ze_noDA', 'f',ncShape2D,**fillVDict)
       nc_ze_noDA.description="reflectivity of the most significant peak, not dealiased"
       nc_ze_noDA.units = "dBz"
@@ -1527,7 +1529,7 @@ class MrrZe:
       nc_ze[:] = np.array(self.Ze,dtype="f4")
       #if not pyNc: nc_ze._FillValue =float(self.missingNumber)
 
-    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "specWidth_noDA" in varsToSave:
+    if (varsToSave=='all' and saveAlsoNonDealiased) or "specWidth_noDA" in varsToSave:
       nc_specWidth_noDA = cdfFile.createVariable('spectralWidth_noDA', 'f',ncShape2D,**fillVDict)
       nc_specWidth_noDA.description="spectral width of the most significant peak, not dealiased"
       nc_specWidth_noDA.units = "m/s"
@@ -1541,7 +1543,7 @@ class MrrZe:
       nc_specWidth[:] = np.array(self.specWidth,dtype="f4")
       #if not pyNc: nc_specWidth._FillValue =float(self.missingNumber)
 
-    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "skewness_noDA" in varsToSave:
+    if (varsToSave=='all' and saveAlsoNonDealiased) or "skewness_noDA" in varsToSave:
       nc_skewness_noDA = cdfFile.createVariable('skewness_noDA', 'f',ncShape2D,**fillVDict)
       nc_skewness_noDA.description="Skewness of the most significant peak, not dealiased"
       nc_skewness_noDA.units = "m/s"
@@ -1555,7 +1557,7 @@ class MrrZe:
       nc_skewness[:] = np.array(self.skewness,dtype="f4")
       #if not pyNc: nc_skewness._FillValue =float(self.missingNumber)
 
-    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "kurtosis_noDA" in varsToSave:
+    if (varsToSave=='all' and saveAlsoNonDealiased) or "kurtosis_noDA" in varsToSave:
       nc_kurtosis_noDA = cdfFile.createVariable('kurtosis_noDA', 'f',ncShape2D,**fillVDict)
       nc_kurtosis_noDA.description="kurtosis of the most significant peak, not dealiased"
       nc_kurtosis_noDA.units = "m/s"
@@ -1569,7 +1571,7 @@ class MrrZe:
       nc_kurtosis[:] = np.array(self.kurtosis,dtype="f4")
       #if not pyNc: nc_kurtosis._FillValue =float(self.missingNumber)
 
-    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "peakVelLeftBorder_noDA" in varsToSave:
+    if (varsToSave=='all' and saveAlsoNonDealiased) or "peakVelLeftBorder_noDA" in varsToSave:
       nc_peakVelLeftBorder_noDA = cdfFile.createVariable('peakVelLeftBorder_noDA', 'f',ncShape2D,**fillVDict)
       nc_peakVelLeftBorder_noDA.description="Doppler velocity of the left border of the peak, not dealiased"
       nc_peakVelLeftBorder_noDA.units = "m/s"
@@ -1583,7 +1585,7 @@ class MrrZe:
       nc_peakVelLeftBorder[:] = np.array(self.peakVelLeftBorder,dtype="f4")
       #if not pyNc: nc_peakVelLeftBorder._FillValue =float(self.missingNumber)
 
-    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "peakVelRightBorder_noDA" in varsToSave:
+    if (varsToSave=='all' and saveAlsoNonDealiased) or "peakVelRightBorder_noDA" in varsToSave:
       nc_peakVelRightBorder_noDA = cdfFile.createVariable('peakVelRightBorder_noDA', 'f',ncShape2D,**fillVDict)
       nc_peakVelRightBorder_noDA.description="Doppler velocity of the right border of the peak, not dealiased"
       nc_peakVelRightBorder_noDA.units = "m/s"
@@ -1597,7 +1599,7 @@ class MrrZe:
       nc_peakVelRightBorder[:] = np.array(self.peakVelRightBorder,dtype="f4")
       #if not pyNc: nc_peakVelRightBorder._FillValue =float(self.missingNumber)
 
-    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "leftSlope_noDA" in varsToSave:
+    if (varsToSave=='all' and saveAlsoNonDealiased) or "leftSlope_noDA" in varsToSave:
       nc_leftSlope_noDA = cdfFile.createVariable('leftSlope_noDA', 'f',ncShape2D,**fillVDict)
       nc_leftSlope_noDA.description="Slope at the left side of the peak, not dealiased"
       nc_leftSlope_noDA.units = "m/s"
@@ -1611,7 +1613,7 @@ class MrrZe:
       nc_leftSlope[:] = np.array(self.leftSlope,dtype="f4")
       #if not pyNc: nc_leftSlope._FillValue =float(self.missingNumber)
 
-    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "rightSlope_noDA" in varsToSave:
+    if (varsToSave=='all' and saveAlsoNonDealiased) or "rightSlope_noDA" in varsToSave:
       nc_rightSlope_noDA = cdfFile.createVariable('rightSlope_noDA', 'f',ncShape2D,**fillVDict)
       nc_rightSlope_noDA.description="Slope at the right side of the peak, not dealiased"
       nc_rightSlope_noDA.units = "m/s"
@@ -1625,7 +1627,7 @@ class MrrZe:
       nc_rightSlope[:] = np.array(self.rightSlope,dtype="f4")
       #if not pyNc: nc_rightSlope._FillValue =float(self.missingNumber)
 
-    if (varsToSave=='all' and self.co["dealiaseSpectrum_saveAlsoNonDealiased"]) or "W_noDA" in varsToSave:
+    if (varsToSave=='all' and saveAlsoNonDealiased) or "W_noDA" in varsToSave:
       nc_w_noDA = cdfFile.createVariable('W_noDA', 'f',ncShape2D,**fillVDict)
       nc_w_noDA.description="Mean Doppler Velocity of the most significant peak, not dealiased"
       nc_w_noDA.units = "m/s"
@@ -1947,7 +1949,7 @@ class mrrProcessedData:
     if verbosity > 0: print "done reading"
   #end def __init__
 
-  def write2NetCDF(self,fileOut,author="IMProToo",description="",netcdfFormat = 'NETCDF3_CLASSIC'):
+  def write2NetCDF(self,fileOut,author="IMProToo",description="MRR Averaged or Processed Data",netcdfFormat = 'NETCDF3_CLASSIC'):
     '''
     writes MRR Average or Instantaneous Data into Netcdf file
   
@@ -2088,7 +2090,7 @@ class mrrRawData:
     """
     reads MRR raw data. The data is not converted, no magic! The input files can be .gz compressed. Invalid or Missing data is marked as nan and masked
     
-    Since MRR raw data can contains all teh data transfered on the serial bus, a lot warnings can be raised. Usually tehse can be ignored.
+    Since MRR raw data can contains all teh data transfered on the serial bus, a lot warnings can be raised. Usually these can be ignored.
     
     @parameter fname (str or list): list of files or Filename, wildcards allowed!
     @parameter debugstart (int): start after debugstart timestamps
@@ -2185,7 +2187,7 @@ class mrrRawData:
       prevDate=0
       tmpList = list()
       
-      #preset, can be changed in 8 lines
+      #preset, is changed in 8 lines if required
       fileFormat = "new"
       
       for line in allData:
@@ -2304,6 +2306,7 @@ class mrrRawData:
       #end for t,timestamp
       
       #discard spectra which are only partly valid!
+      
       rawSpectra[np.any(np.isnan(rawSpectra),axis=2)] = np.nan
       rawSpectra[np.any(np.isnan(rawTFs),axis=1)] = np.nan
       rawSpectra[np.any(np.isnan(rawHeights),axis=1)] = np.nan
@@ -2345,7 +2348,7 @@ class mrrRawData:
 
   #end def __init__
   
-  def write2NetCDF(self,fileOut,author="IMProToo",description="",netcdfFormat = 'NETCDF3_CLASSIC'):
+  def write2NetCDF(self,fileOut,author="IMProToo",description="MRR Raw Data",netcdfFormat = 'NETCDF3_CLASSIC'):
     '''
     writes MRR raw Data into Netcdf file
   
@@ -2371,7 +2374,7 @@ class mrrRawData:
       
     if pyNc: cdfFile = nc.Dataset(fileOut,"w",format=netcdfFormat)
     else: cdfFile = nc.NetCDFFile(fileOut,"w")
-    
+
     print("writing %s ..."%(fileOut))
     #Attributes
     cdfFile.history = 'Created ' + str(time.ctime(time.time()))
