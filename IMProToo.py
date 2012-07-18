@@ -57,6 +57,8 @@ class MrrZe:
     #verbosity
     self.co["debug"] = 0
     
+ 
+    
     #######MRR Settings#######
     
     #mrr frequency, MRR after 2011 (or upgraded) use 24.23e9
@@ -1674,13 +1676,14 @@ class mrrProcessedData:
   '''
   missingNumber = -9999
   
-  def __init__(self,fname,debugLimit = 0,maskData=True):
+  def __init__(self,fname,debugLimit = 0,maskData=True,verbosity=2):
     """
     reads MRR Average or Instantaneous data. The data is not converted, no magic! The input files can be .gz compressed. Invalid or missing data is marked as nan
 
-    @parameter fname (str): Filename, wildcards allowed!
+    @parameter fname (str or list): list of files or Filename, wildcards allowed!
     @parameter debugLimit (int): stop after debugLimit timestamps
     @parameter maskData (bool): mask nan's in arrays
+    @parameter verbosity (int): 0: silent exept warnings/errors, 2:verbose
     
     No return, but provides MRR dataset variables 
     """
@@ -1735,14 +1738,17 @@ class mrrProcessedData:
       else:
         return floatInt(string)  
 
-    files = glob.glob(fname)
-    files.sort()
+    if type(fname) == list:
+      files = fname
+    else:  
+      files = glob.glob(fname)
+      files.sort()
     
     foundAtLeastOneFile = False
     
     #go through all files
     for f,file in enumerate(files):
-      print "%s of %s:"%(f+1,len(files)), file
+      if verbosity > 1: print "%s of %s:"%(f+1,len(files)), file
       
       #open file, gzip or ascii
       try:
@@ -1765,7 +1771,7 @@ class mrrProcessedData:
           allData.seek(0)
           i=0
       except IOError:
-        print "skipping..."
+        print "skipping...", file
         continue
       
       foundAtLeastOneFile = True
@@ -1938,7 +1944,7 @@ class mrrProcessedData:
     self.shape2D = np.shape(self.mrrH)
     self.shape3D = np.shape(self.mrrF)
 
-    print "done reading"
+    if verbosity > 0: print "done reading"
   #end def __init__
 
   def write2NetCDF(self,fileOut,author="IMProToo",description="",netcdfFormat = 'NETCDF3_CLASSIC'):
@@ -2084,7 +2090,7 @@ class mrrRawData:
     
     Since MRR raw data can contains all teh data transfered on the serial bus, a lot warnings can be raised. Usually tehse can be ignored.
     
-    @parameter fname (str): Filename, wildcards allowed!
+    @parameter fname (str or list): list of files or Filename, wildcards allowed!
     @parameter debugstart (int): start after debugstart timestamps
     @parameter debugLimit (int): stop after debugLimit timestamps
     
@@ -2136,8 +2142,12 @@ class mrrRawData:
           instData_append(np.nan)
       return np.array(instData)
 
-    files = glob.glob(fname)
-    files.sort()
+    if type(fname) == list:
+      files = fname
+    else:  
+      files = glob.glob(fname)
+      files.sort()
+
 
     foundAtLeastOneFile = False
     
