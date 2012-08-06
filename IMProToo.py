@@ -39,7 +39,7 @@ import sys
 
 import IMProTooTools
 
-__version__ = "0.97"
+__version__ = "0.98"
 
 class MrrZe:
   '''
@@ -1280,21 +1280,36 @@ class MrrZe:
     eta = np.ma.masked_array(eta,rawSpectra.mask)
     etaNoiseAve = noise * (self.co["mrrCalibConst"] * (heights**2 / deltaH)) / 1e20
     etaNoiseStd = noise_std * (self.co["mrrCalibConst"] * (heights**2 / deltaH)) / 1e20
+
     #calculate Ze
     Ze  = 1e18*(self.co["lamb"]**4*np.ma.sum(eta,axis=-1)/(np.pi**5*self.co["K2"]))
     Ze = (10*np.ma.log10(Ze)).filled(-9999)
     #Znoise  = 1e18*(self.co["lamb"]**4*(etaNoise*self.co["widthSpectrum"])/(np.pi**5*self.co["K2"]))
     #Znoise = 10*np.ma.log10(Znoise).filled(-9999)
+
+    #no slicing neccesary due to mask! definign average value "my"
+    my = np.ma.sum(velocities*rawSpectra,axis=-1) / np.ma.sum(rawSpectra,axis=-1)
+
     
+    #normed weights
+    P = (rawSpectra.T/np.ma.sum(rawSpectra,axis=-1).T).T
+    x = velocities
     
+    #http://mathworld.wolfram.com/CentralMoment.html 
+    #T is neccessary due to different dimensions
+    mom2 = np.ma.sum(P*(x.T-my.T).T**2,axis=-1)
+    mom3 = np.ma.sum(P*(x.T-my.T).T**3,axis=-1)
+    mom4 = np.ma.sum(P*(x.T-my.T).T**4,axis=-1)
     
-    #no slicing neccesary due to mask!
-    W = np.ma.sum(velocities*rawSpectra,axis=-1) / np.ma.sum(rawSpectra,axis=-1)
-    W = W.filled(-9999)
-    specWidth = ((np.ma.abs(np.ma.sum(rawSpectra*(velocities.T-W.T).T**2,axis=-1) / np.ma.sum(rawSpectra,axis=-1)))**(1/2.)).filled(-9999)
-    skewness =  ((np.ma.abs(np.ma.sum(rawSpectra*(velocities.T-W.T).T**3,axis=-1) / np.ma.sum(rawSpectra,axis=-1)))**(1/3.)).filled(-9999)
-    kurtosis =  ((np.ma.abs(np.ma.sum(rawSpectra*(velocities.T-W.T).T**4,axis=-1) / np.ma.sum(rawSpectra,axis=-1)))**(1/4.)).filled(-9999)
-    
+    #average fall velocity is my
+    W = my.filled(-9999)
+    #spec width is weighted std
+    specWidth = np.sqrt(mom2).filled(-9999)
+    #http://mathworld.wolfram.com/Skewness.html
+    skewness = (mom3/mom2**(3./2.)).filled(-9999)
+    #http://mathworld.wolfram.com/Kurtosis.html
+    kurtosis = (mom4/mom2**(2.)).filled(-9999)
+
     #get velocity at borders and max of peak
     peakVelLeftBorder = self.specVel[np.argmin(rawSpectra.mask,axis=-1)]
     peakVelRightBorder = self.specVel[len(self.specVel) - np.argmin(rawSpectra.mask[...,::-1],axis=-1) - 1]
