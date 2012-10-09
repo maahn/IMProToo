@@ -27,7 +27,7 @@ try: os.mkdir(pathOut)
 except OSError: pass
 
 #go through all gz compressed files in pathIn/year/month/
-for nfile in np.sort(glob.glob(pathIn+"/*mrr*")):
+for nfile in np.sort(glob.glob(pathIn+"/*/*/*mrr*raw*")):
   date = nfile[-15:-7] #expects filename as xxxxxxxxxxx_date.mrr.gz
   
   fileOut = pathOut+"/mrr_improtoo_"+version+"_"+site+"_"+date+".nc"

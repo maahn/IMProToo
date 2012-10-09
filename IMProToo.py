@@ -1179,7 +1179,7 @@ class MrrZe:
     can make it worse if dealiasing produces zig-zag patterns.
     
     '''
-    self.qual["DAdirectionCorrectedByCoherenceTest"] = np.zeros(self._shape2D)
+    self.qual["DAdirectionCorrectedByCoherenceTest"] = np.zeros(self._shape2D,dtype=bool)
     meanVelocity = np.ma.average(np.ma.sum(newSpectrum*self.specVel,axis=-1)/np.ma.sum(newSpectrum,axis=-1),axis=-1)
   
     velDiffs = np.diff(meanVelocity)
