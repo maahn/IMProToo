@@ -27,6 +27,10 @@ from matplotlib import rc,ticker
 import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as font_manager 
+import random
+import string
+from copy import deepcopy 
+
 import IMProToo
 from IMProTooTools import *
 try:
@@ -36,7 +40,8 @@ except:
   import Scientific.IO.NetCDF as nc
   pyNc = False
 
-
+tmpDir="/tmp/"
+skipExisting = True
 
 def unix2timestamp(unix):
   return datetime.datetime.utcfromtimestamp(unix).strftime("%Y%m%d")
@@ -54,6 +59,18 @@ def quicklook(site,ncFile,imgFile,imgTitle):
   @parameter imgTitle (str): plot title
   """
   print "##### " + imgTitle + "######"
+  tmpFile = False
+  if ncFile.split(".")[-1]=="gz":
+    tmpFile = True
+    gzFile = deepcopy(ncFile)
+    ncFile = tmpDir+"/maxLibs_netcdf_"+''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(5))+".tmp.nc"
+    print 'uncompressing', gzFile, "->",ncFile      
+    os.system("zcat "+gzFile+">"+ncFile)
+  else:
+    print 'opening', ncFile
+
+
+
   if pyNc: ncData = nc.Dataset(ncFile,'r')
   else: ncData  = nc.NetCDFFile(ncFile,'r')
 
@@ -67,7 +84,9 @@ def quicklook(site,ncFile,imgFile,imgTitle):
   qualityNew = ncData.variables["quality"][:]
   
   ncData.close()
-  #
+  if (tmpFile):
+    os.system("rm -f "+ncFile)
+  
   date = unix2timestamp(timestampsNew[0])
   starttime = timestamp2unix(date)
   endtime = starttime+60*60*24
@@ -190,9 +209,15 @@ except OSError: pass
 
 
 for ncFile in np.sort(glob.glob(pathIn+"/*")):
-  date = ncFile[-11:-3]
+  #import pdb;pdb.set_trace()
+  date = ncFile.split("_")[-1].split(".")[0]
   print date, ncFile
   imgFile = pathOut + "/mrr_improtoo_"+IMProToo.__version__+'_'+site+"_"+date+".png"
   imgTitle = site + " " + date + " IMProToo " + IMProToo.__version__
+  
+  if skipExisting and os.path.isfile(imgFile):
+    print "Quicklook aready exists, skipping: ", date, ncFile, imgFile
+    continue
+  
   quicklook(site,ncFile,imgFile,imgTitle)
 

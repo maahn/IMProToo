@@ -3,4 +3,6 @@
 *.backup
 *.png
 *.nc
+*.kate-swp
+.nfs*
 *FRIEDHOF.py

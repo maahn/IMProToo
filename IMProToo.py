@@ -39,7 +39,7 @@ import sys
 
 import IMProTooTools
 
-__version__ = "0.98"
+__version__ = "0.99"
 
 class MrrZe:
   '''
@@ -365,10 +365,6 @@ class MrrZe:
     #what is the noise, but _without_ the borders, we want in noise 3D also 
     noise = np.ma.masked_array(self.rawSpectrum.data,(np.logical_not(self.rawSpectrum.mask)+self._specBorderMask3D))
     self.specNoise = np.ma.average(noise,axis=-1).filled(0)
-
-    #get the signal to noise ratio
-    self.snr = np.max(self.rawSpectrum,axis=-1)/self.specNoise
-    self.snr = self.snr.filled(0)
     
     if self.debugStopper == 2:  return    
 
@@ -1323,10 +1319,10 @@ class MrrZe:
     etaSpectraFlat = eta.reshape((eta.shape[0]*eta.shape[1],eta.shape[2]))
     
     #no get the according values
-    peakEtaLeftBorder =  etaSpectraFlat[xrange(etaSpectraFlat.shape[0]),peakArgLeftBorder.ravel()].reshape(self._shape2D)
-    peakEtaRightBorder =     etaSpectraFlat[xrange(etaSpectraFlat.shape[0]),peakArgRightBorder.ravel()].reshape(self._shape2D)
+    peakEtaLeftBorder =  10*np.log10(etaSpectraFlat[xrange(etaSpectraFlat.shape[0]),peakArgLeftBorder.ravel()].reshape(self._shape2D))
+    peakEtaRightBorder =     10*np.log10(etaSpectraFlat[xrange(etaSpectraFlat.shape[0]),peakArgRightBorder.ravel()].reshape(self._shape2D))
     
-    peakEtaMax = np.max(eta.filled(-9999),axis=-1)
+    peakEtaMax = 10*np.log10(np.max(eta.filled(-9999),axis=-1))
     
     leftSlope =  (peakEtaMax - peakEtaLeftBorder)/(peakVelMax - peakVelLeftBorder)
     rightSlope = (peakEtaMax - peakEtaRightBorder)/(peakVelMax - peakVelRightBorder)
@@ -1335,6 +1331,9 @@ class MrrZe:
     peakVelRightBorder[Ze == -9999] = -9999
     leftSlope[Ze == -9999] = -9999
     rightSlope[Ze == -9999] = -9999
+    leftSlope[np.isnan(leftSlope)] = -9999
+    rightSlope[np.isnan(rightSlope)] = -9999    
+    
     return eta, Ze, W, etaNoiseAve, etaNoiseStd, specWidth, skewness, kurtosis, peakVelLeftBorder, peakVelRightBorder, leftSlope, rightSlope
 
     
@@ -1490,7 +1489,7 @@ class MrrZe:
     if (varsToSave=='all' and saveAlsoNonDealiased) or "eta_noDA" in varsToSave:
       nc_eta_noDA = cdfFile.createVariable('eta_noDA', 'f',ncShape3D_noDA,**fillVDict)
       nc_eta_noDA.description ="spectral reflectivities NOT dealiased"
-      nc_eta_noDA.units = "1/m"
+      nc_eta_noDA.units = "mm^6/m^3"
       nc_eta_noDA[:] = np.array(self.eta_noDA.data,dtype="f4")
       #if not pyNc: nc_eta_noDA._FillValue =float(self.missingNumber)
 
@@ -1503,7 +1502,7 @@ class MrrZe:
     if varsToSave=='all' or "eta" in varsToSave:
       nc_eta = cdfFile.createVariable('eta', 'f',ncShape3D,**fillVDict)
       nc_eta.description ="spectral reflectivities. if dealiasing is applied, the spectra are triplicated, thus up to three peaks can occur from -12 to +24 m/s. However, only one peak is not masked in etaMask"
-      nc_eta.units = "1/m"
+      nc_eta.units = "mm^6/m^3"
       nc_eta[:] = np.array(self.eta.data,dtype="f4")
       #if not pyNc: nc_eta._FillValue =float(self.missingNumber)
 
@@ -1617,28 +1616,28 @@ class MrrZe:
     if (varsToSave=='all' and saveAlsoNonDealiased) or "leftSlope_noDA" in varsToSave:
       nc_leftSlope_noDA = cdfFile.createVariable('leftSlope_noDA', 'f',ncShape2D,**fillVDict)
       nc_leftSlope_noDA.description="Slope at the left side of the peak, not dealiased"
-      nc_leftSlope_noDA.units = "m/s"
+      nc_leftSlope_noDA.units = "dB/(m/s)"
       nc_leftSlope_noDA[:] = np.array(self.leftSlope_noDA,dtype="f4")
       #if not pyNc: nc_leftSlope_noDA._FillValue =float(self.missingNumber)
       
     if varsToSave=='all' or "leftSlope" in varsToSave:
       nc_leftSlope = cdfFile.createVariable('leftSlope', 'f',ncShape2D,**fillVDict)
       nc_leftSlope.description="Slope at the left side of the peak"
-      nc_leftSlope.units = "m/s"
+      nc_leftSlope.units = "dB/(m/s)"
       nc_leftSlope[:] = np.array(self.leftSlope,dtype="f4")
       #if not pyNc: nc_leftSlope._FillValue =float(self.missingNumber)
 
     if (varsToSave=='all' and saveAlsoNonDealiased) or "rightSlope_noDA" in varsToSave:
       nc_rightSlope_noDA = cdfFile.createVariable('rightSlope_noDA', 'f',ncShape2D,**fillVDict)
       nc_rightSlope_noDA.description="Slope at the right side of the peak, not dealiased"
-      nc_rightSlope_noDA.units = "m/s"
+      nc_rightSlope_noDA.units = "dB/(m/s)"
       nc_rightSlope_noDA[:] = np.array(self.rightSlope_noDA,dtype="f4")
       #if not pyNc: nc_rightSlope_noDA._FillValue =float(self.missingNumber)
       
     if varsToSave=='all' or "rightSlope" in varsToSave:
       nc_rightSlope = cdfFile.createVariable('rightSlope', 'f',ncShape2D,**fillVDict)
       nc_rightSlope.description="Slope at the right side of the peak"
-      nc_rightSlope.units = "m/s"
+      nc_rightSlope.units = "dB/(m/s)"
       nc_rightSlope[:] = np.array(self.rightSlope,dtype="f4")
       #if not pyNc: nc_rightSlope._FillValue =float(self.missingNumber)
 
@@ -1659,14 +1658,14 @@ class MrrZe:
     if varsToSave=='all' or "etaNoiseAve" in varsToSave:
       nc_noiseAve = cdfFile.createVariable('etaNoiseAve', 'f',ncShape2D,**fillVDict)
       nc_noiseAve.description="mean noise of one Doppler Spectrum in the same units as eta, never dealiased"
-      nc_noiseAve.units = "1/m"
+      nc_noiseAve.units = "mm^6/m^3"
       nc_noiseAve[:] = np.array(self.etaNoiseAve,dtype="f4")
       #if not pyNc: nc_noiseAve._FillValue =float(self.missingNumber)
       
     if varsToSave=='all' or "etaNoiseStd" in varsToSave:
       nc_noiseStd = cdfFile.createVariable('etaNoiseStd', 'f',ncShape2D,**fillVDict)
       nc_noiseStd.description="std of noise of one Doppler Spectrum in the same units as eta, never dealiased"
-      nc_noiseStd.units = "1/m"
+      nc_noiseStd.units = "mm^6/m^3"
       nc_noiseStd[:] = np.array(self.etaNoiseStd,dtype="f4")
       #if not pyNc: nc_noiseStd._FillValue =float(self.missingNumber)   
       
