@@ -13,7 +13,7 @@ The software can be used under the GPL license
 The routine is described in 
 Maahn, M. and Kollias, P.: Improved Micro Rain Radar snow measurements using Doppler spectra post-processing, Atmos. Meas. Tech. Discuss., 5, 4771-4808, doi:10.5194/amtd-5-4771-2012, 2012. http://www.atmos-meas-tech-discuss.net/5/4771/2012/amtd-5-4771-2012.html
 
-Please quote teh article if you use the routine for your publication.
+Please quote the article if you use the routine for your publication.
 
 ## How to install
 
