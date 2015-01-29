@@ -2018,6 +2018,9 @@ class mrrProcessedData:
     nc_classes.units = 'none'
     
     #Create Variables
+    nc_h = cdfFile.createVariable('MRR_H','f',('time','MRR rangegate',),**fillVDict)
+    nc_h.units = 'm'
+
     nc_tf = cdfFile.createVariable('MRR_TF','f',('time','MRR rangegate',),**fillVDict)
     nc_tf.units = 'none'
     
@@ -2058,6 +2061,7 @@ class mrrProcessedData:
     nc_ranges[:] = np.array(self.mrrH,dtype="f4")
 
     #fill data
+    nc_h[:] = np.array(self.mrrH,dtype="f4")
     nc_tf[:] = np.array(self.mrrTF,dtype="f4")
     nc_f[:] = np.array(self.mrrF,dtype="f4")
     nc_d[:] = np.array(self.mrrD,dtype="f4")
