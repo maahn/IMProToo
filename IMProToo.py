@@ -1922,7 +1922,7 @@ class mrrProcessedData:
       except AttributeError:
         self.mrrTimestamps = aveTimestamps
         self.mrrH = aveH
-        self.mrrTF = aveH
+        self.mrrTF = aveTF
         self.mrrF = aveF
         self.mrrN = aveN
         self.mrrD = aveD
