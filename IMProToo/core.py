@@ -6,7 +6,7 @@ Improved MRR Processing Tool
 Python toolkit to read, write and process MRR Data. Raw Data, Average and Instantaneous
 Data are supported.
 
-Copyright (C) 2011,2012 Maximilian Maahn, IGMK (mmaahn@meteo.uni-koeln.de)
+Copyright (C) 2011-2015 Maximilian Maahn, IGMK (mmaahn@meteo.uni-koeln.de)
 http://gop.meteo.uni-koeln.de/software
 
 
@@ -37,9 +37,9 @@ from copy import deepcopy
 import warnings
 import sys
 
-import IMProTooTools
+from .tools import unix2date, date2unix ,limitMaInidces, quantile, oneD2twoD
 
-__version__ = "0.99"
+__version__ = "0.101"
 
 class MrrZe:
   '''
@@ -209,10 +209,10 @@ class MrrZe:
     noSpec = self.noSpecPerTimestep
     
     #find first entry
-    startSeconds = IMProTooTools.unix2date(rawTimestamps[0]).second
+    startSeconds = unix2date(rawTimestamps[0]).second
     start = rawTimestamps[0] + averagingTime - startSeconds
     #find last minute
-    endSeconds = IMProTooTools.unix2date(rawTimestamps[-1]).second
+    endSeconds = unix2date(rawTimestamps[-1]).second
     end = rawTimestamps[-1] + 60 - endSeconds
     #make new timevector and 
     rawTimestampsAve = np.ma.arange(start,end+averagingTime,averagingTime,dtype="int")
@@ -255,7 +255,7 @@ class MrrZe:
         heightsAve[t] = np.nan
         TFsAve[t] = np.nan
         noSpecAve[t] = 0
-        print "No Data at " + str(IMProTooTools.unix2date(timestamp))
+        print "No Data at " + str(unix2date(timestamp))
     
     self.rawSpectrum = rawSpectraAve
     self.time = rawTimestampsAve
@@ -525,7 +525,7 @@ class MrrZe:
 	  tSM = t+2 # for subMaxs t needs to be 2 larger due to 2 pixel border! for h not neccesary, 2 pixel border at botztom already there
 	  subMaxs = maxs[tSM-2:tSM+3,h-2:h+3]
 	  thisMaxsDiff = 32-maxs[tSM,h]
-	  subMaxsNormed = IMProTooTools.limitMaInidces(subMaxs + thisMaxsDiff,64)
+	  subMaxsNormed = limitMaInidces(subMaxs + thisMaxsDiff,64)
 	  diffs = np.abs(subMaxsNormed - 32)
 	  
 	  if t in [0,self.no_t-1] or h in [2,29]:
@@ -1044,7 +1044,7 @@ class MrrZe:
         
         #the trusted peak needs a certain minimal reflectivity to avoid confusion by interference etc, get the minimum threshold
         averageZe = np.sum(allPeaksZe[t])/float(len(allPeaksZe[t]))
-        minZe = IMProTooTools.quantile(self._allPeaksZe[t], self.co['dealiaseSpectrum_trustedPeakminZeQuantile'])
+        minZe = quantile(self._allPeaksZe[t], self.co['dealiaseSpectrum_trustedPeakminZeQuantile'])
         
         
         peaksVelMe = np.array(allPeaksVelMe[t])
@@ -1269,7 +1269,7 @@ class MrrZe:
     calculate the spectral moements and other spectral variables
     '''
 
-    deltaH = IMProTooTools.oneD2twoD(heights[...,15]-heights[...,14], heights.shape[-1], 1)
+    deltaH = oneD2twoD(heights[...,15]-heights[...,14], heights.shape[-1], 1)
     
     #transponieren um multiplizieren zu ermoeglichen!
     eta = (rawSpectra.data.T * np.array((self.co["mrrCalibConst"] * (heights**2 / deltaH)) / ( 1e20),dtype=float).T).T
@@ -1723,7 +1723,7 @@ class mrrProcessedData:
             listOfData_append(mrrDataEsc(string[k:k+i_offset],floatInt))
       except:
         #try to fix MRR bug
-        print "repairing data at " + str(IMProTooTools.unix2date(debugTime))
+        print "repairing data at " + str(unix2date(debugTime))
         string = string.replace("10000.0","10000.")
         string = string.replace("1000.00","1000.0")
         string = string.replace("100.000","100.00")
@@ -1735,7 +1735,7 @@ class mrrProcessedData:
           try:
             listOfData_append(mrrDataEsc(string[k:k+i_offset],floatInt))
           except:
-            print("######### Warning, Corrupt data at "+ str(IMProTooTools.unix2date(debugTime))+ ", position "+str(k)+": " + string+" #########")
+            print("######### Warning, Corrupt data at "+ str(unix2date(debugTime))+ ", position "+str(k)+": " + string+" #########")
             listOfData_append(np.nan)
       return np.array(listOfData)
     
@@ -1806,7 +1806,7 @@ class mrrProcessedData:
             if ( re.search("UTC", line) == None):
               sys.exit("Warning, must be UTC!")
             date = datetime.datetime(year = 2000+int(asciiDate[0:2]), month = int(asciiDate[2:4]), day = int(asciiDate[4:6]), hour = int(asciiDate[6:8]), minute = int(asciiDate[8:10]), second = int(asciiDate[10:12]))
-            date = int(IMProTooTools.date2unix(date))
+            date = int(date2unix(date))
             tmpList.append(line)
             prevDate = date
         else:
@@ -1858,7 +1858,7 @@ class mrrProcessedData:
             try:
               specBin = int(dataLine[1:3])
             except:
-              print("######### Warning, Corrupt data header at "+ str(IMProTooTools.unix2date(timestamp))+ ", " + dataLine+" #########")
+              print("######### Warning, Corrupt data header at "+ str(unix2date(timestamp))+ ", " + dataLine+" #########")
               continue
             aveF[t,:,specBin] = splitMrrAveData(dataLine,timestamp,float)
             continue
@@ -1866,7 +1866,7 @@ class mrrProcessedData:
             try:
               specBin = int(dataLine[1:3])
             except:
-              print("######### Warning, Corrupt data header at "+ str(IMProTooTools.unix2date(timestamp))+ ", " + dataLine+" #########")
+              print("######### Warning, Corrupt data header at "+ str(unix2date(timestamp))+ ", " + dataLine+" #########")
               continue
             aveD[t,:,specBin] = splitMrrAveData(dataLine,timestamp,float)
             continue
@@ -1874,7 +1874,7 @@ class mrrProcessedData:
             try:
               specBin = int(dataLine[1:3])
             except:
-              print("######### Warning, Corrupt data header at "+ str(IMProTooTools.unix2date(timestamp))+ ", " + dataLine+" #########")
+              print("######### Warning, Corrupt data header at "+ str(unix2date(timestamp))+ ", " + dataLine+" #########")
               continue
             aveN[t,:,specBin] = splitMrrAveData(dataLine,timestamp,float)
             continue
@@ -1902,7 +1902,7 @@ class mrrProcessedData:
           elif len(dataLine)==2:
             continue
           else:
-            print "? Line not recognized:", str(IMProTooTools.unix2date(timestamp)), dataLine, len(dataLine)
+            print "? Line not recognized:", str(unix2date(timestamp)), dataLine, len(dataLine)
       
       #join arrays of different files
       try:
@@ -2158,7 +2158,7 @@ class mrrRawData:
         try:
           instData_append(rawEsc(string[k:k+9],floatInt))
         except:
-          print("######### Warning, Corrupt data at "+ str(IMProTooTools.unix2date(debugTime))+ ", " + str(timestamp) + ", position "+str(k)+": " + string+" #########")
+          print("######### Warning, Corrupt data at "+ str(unix2date(debugTime))+ ", " + str(timestamp) + ", position "+str(k)+": " + string+" #########")
           instData_append(np.nan)
       return np.array(instData)
 
@@ -2222,7 +2222,7 @@ class mrrRawData:
 	    raise IOError("must be either new or old file format!")
           # Script wants UTC!
           date = datetime.datetime(year = 2000+int(asciiDate[0:2]), month = int(asciiDate[2:4]), day = int(asciiDate[4:6]), hour = int(asciiDate[6:8]), minute = int(asciiDate[8:10]), second = int(asciiDate[10:12]))
-          date = int(IMProTooTools.date2unix(date))
+          date = int(date2unix(date))
           tmpList.append(line)
           prevDate = date
         else:
@@ -2312,7 +2312,7 @@ class mrrRawData:
 	      else: 
 		specBin = int(dataLine[1:3])     
             except:
-              warnings.warn("######### Warning, Corrupt data header at "+ str(IMProTooTools.unix2date(timestamp))+ ", " + str(timestamp) + ", "+ dataLine+" #########")
+              warnings.warn("######### Warning, Corrupt data header at "+ str(unix2date(timestamp))+ ", " + str(timestamp) + ", "+ dataLine+" #########")
               continue
             rawSpectra[t,:,specBin] = splitMrrRawData(dataLine,timestamp,int,startIndex)
             continue

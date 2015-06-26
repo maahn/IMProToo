@@ -6,3 +6,6 @@
 *.kate-swp
 .nfs*
 *FRIEDHOF.py
+IMProToo.egg-info
+build
+dist

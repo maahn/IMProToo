@@ -8,6 +8,9 @@ Please note that this software was developed for observations at low SNR ratios 
 
 The software can be used under the GPL license
 
+## What's new?
+From version 0.101 on, an installation routine is provided. Do avoid conflicts, please remove earlier versions manually before installing a newer version.
+
 ## How does it work 
 
 The routine is described in 
@@ -22,10 +25,24 @@ The software is developed for python 2.7 and should run on any recent Linux syst
 The following python packages are required:
   * numpy
   * matplotlib (for plotting only)
-  * http://code.google.com/p/netcdf4-python/|netcdf4-python OR python-netcdf (for saving the results only)
+  * netcdf4-python http://code.google.com/p/netcdf4-python/ OR python-netcdf (for saving the results only)
 
+## Installation
 
-An installation routine is not provided, Instead, save the included files in your working directory and import the package using "import IMProToo". If you want to save the files in another directory, you have to add this directory to your python path (http://stackoverflow.com/questions/3108285/in-python-script-how-do-i-set-pythonpath). If you have root permissions, you can also put the files into your python library directory (usually /usr/lib/python).
+Change to the folder containing the project and do 
+```
+  python setup.py install
+```
+in the terminal. If you do not have user priviliges, you can also do:
+```
+  python setup.py --user install
+```
+which will install IMProToo in userbase/lib/pythonX.Y/site-packages or
+```
+  python setup.py install --home=~
+```
+which will install IMProToo in ~/lib/python.
+
 
 ## How to use
 
@@ -55,9 +72,11 @@ all settings (e.g. creator attribute of netCDF file, dealiasing) are available i
   processedSpec.co["ncDescription"] = "MRR data from Cologne"
   processedSpec.co["dealiaseSpectrum"] = True    
 ```
-  
+
 calculate Ze and other moments
+```
   processedSpec.rawToSnow()
+```
 
 write all variables to a netCDF file.
 ```
