@@ -2256,48 +2256,31 @@ class mrrRawData:
       rawTFs =  np.ones((specLength,32),dtype=float)*np.nan
       rawNoSpec =  np.zeros(specLength,dtype=int)
 
+      # default value - if the whole file is processed without ever setting mrrRawCC, this
+      # means the file is not usable for Ze calculations, but there is no workaround there.
+      self.mrrRawCC = 0
+
       #go through timestamps and fill up arrays
       for t,timestamp in enumerate(rawTimestamps):
         dataSet = dataMRR[timestamp]
         for dataLine in dataSet:
-	  #
           if dataLine[0:2] == "T:" or dataLine[0:3] == "MRR":
-	    dataLine = dataLine.split()
+            # store the first header line as an example, but parse every one
+            # to check for the CC and number of spectra variables.
             if t == 1:
-              self.header = " ".join(dataLine)  # just one header is exemplarily stored, thus no array
-              if dataLine[6] == 'CC': #old raw file format
-                try: self.mrrRawCC = int(dataLine[7])
-                except: 
-                  warnings.warn('Warning, could not read CC:'+dataLine[6]+" "+dataLine[7])
-                  self.mrrRawCC = 0
-              elif dataLine[9] == 'CC': #new raw file format
-                try: self.mrrRawCC = int(dataLine[10])
-                except: 
-                  warnings.warn('Warning, could not read CC:'+dataLine[9]+" "+dataLine[10])
-                  self.mrrRawCC = 0
-              else:
-                warnings.warn('Warning, could not find Keyword CC in :'+dataLine[6:10])
-                self.mrrRawCC = 0
-            #for all headers, noot only t=1
-
-	    if fileFormat == "new":#only new file format
-	      if dataLine[2] != "UTC":
-		raise IOError("ERROR, time must be UTC!")
-	      if dataLine[16] != "RAW":
-		raise IOError("Was expecting MRR RAW DATA, found: "+" ".join(dataLine[15:]))
-	      if dataLine[11] == 'MDQ': 
-		try: 
-		  rawNoSpec[t] = int(dataLine[13])
-		except: 
-		  warnings.warn('Warning, could not read number of Spectra: "'+dataLine[13]+'", taking default instead: '+self.defaultSpecPer10Sec)
-		  rawNoSpec[t] = self.defaultSpecPer10Sec
-	    elif fileFormat == "old":
-	      #old file dormat
-	      if dataLine[1] != "UTC":
-		raise IOError("ERROR, time must be UTC!")
-	      #this is standard for older software Versions, thus no warning is raised.
-	      rawNoSpec[t] = self.defaultSpecPer10Sec
-	    else: raise IOError("must be either new or old file format!")
+              self.header = dataLine
+            headerLineCC, headerLineNumSpectra = self.parseHeaderLine(dataLine, fileFormat)
+            if headerLineCC is not None:
+              self.mrrRawCC = headerLineCC
+            if headerLineNumSpectra is not None:
+              rawNoSpec[t] = headerLineNumSpectra
+            else:
+              # if fileFormat is "old", then the default value must always be taken;
+              # otherwise, use the value from the headerLine, if present, otherwise
+              # print a warning, since that means the headerLine had a problem.
+              if fileFormat == "new":
+                warnings.warn('Warning, could not read number of Spectra, taking default instead: '+self.defaultSpecPer10Sec)
+              rawNoSpec[t] = self.defaultSpecPer10Sec
             continue #print timestamp
           elif dataLine[0:3] == "M:h" or dataLine[0] == "H":
             rawHeights[t,:] = splitMrrRawData(dataLine,timestamp,int,startIndex)
@@ -2365,6 +2348,55 @@ class mrrRawData:
     self.shape3D = np.shape(self.mrrRawSpectrum)
 
   #end def __init__
+
+  @staticmethod
+  def parseHeaderLine(headerLine, fileFormat):
+    '''
+    Parses the raw data header line.
+    Tries to parse according to the fileFormat ("old", or "new")
+    Prints a warning if unsuccessful.
+    '''
+
+    tokens = headerLine.split()
+
+    CC = None
+    numSpectra = None
+
+    try:
+      idx = tokens.index('CC')
+    except:
+      warnings.warn('Warning, could not find Keyword CC in :'+headerLine)
+    else:
+      try:
+        CC = int(tokens[idx+1])
+      except:
+        warnings.warn('Warning, could not read CC in: ' + headerLine)
+
+    if fileFormat == "new":
+      if tokens[2] != "UTC":
+        raise IOError("ERROR, time must be UTC!")
+      if tokens[-1] != "RAW":
+        raise IOError("Was expecting MRR RAW DATA, found: "+tokens[-1])
+      try:
+        idx = tokens.index('MDQ')
+      except:
+        warnings.warn('Warning, could not find Keyword MDQ in :'+headerLine)
+      else:
+        try:
+          numSpectra = int(tokens[idx+1])
+        except:
+          warnings.warn('Warning, could not read number of Spectra: in ' + headerLine)
+
+    elif fileFormat == "old":
+      if tokens[1] != "UTC":
+        raise IOError("ERROR, time must be UTC!")
+
+    else:
+      raise IOError("must be either new or old file format!")
+
+
+    return CC, numSpectra
+
   
   def write2NetCDF(self,fileOut,author="IMProToo",description="MRR Raw Data",netcdfFormat = 'NETCDF3_CLASSIC'):
     '''
