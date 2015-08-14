@@ -8,3 +8,5 @@ from __future__ import division
 
 from .core import *
 from .tools import *
+
+__version__ = "0.101"

@@ -39,7 +39,6 @@ import sys
 
 from .tools import unix2date, date2unix ,limitMaInidces, quantile, oneD2twoD
 
-__version__ = "0.101"
 
 class MrrZe:
   '''
