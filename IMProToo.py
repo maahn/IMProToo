@@ -901,13 +901,22 @@ class MrrZe:
       peakTmpInd = list()
       peaksStartIndices=list()
       peaksEndIndices = list()
+      truncatingPeak = False
       
       #go through all bins
       for ii,spec in enumerate(completeSpectrum):
         #found peak!
-        if completeSpectrum.mask[ii] == False:
+        withinPeak = (completeSpectrum.mask[ii] == False) and (truncatingPeak == False)
+        if withinPeak:
           peakTmp.append(spec)
           peakTmpInd.append(ii)
+          # if the peak length is now larger than the raw spectrum width, then this peak has 
+          # wrapped around the entire width. Flag will cause the peak to be split in two, because 
+          # the next step within the loop through completeSpectrum will have withinPeak False.
+          if len(peakTmp) >= self.co["widthSpectrum"]:
+            truncatingPeak = True
+            warnings.warn('Truncated peak early. Masked area has wrapped around spectrum width at ' + 
+                          'timestemp ' + str(t) + ', bin number ' + str(ii))
         #3found no peak, but teh last one has to be processed
         elif len(peakTmp)>=self.co["findPeak_minPeakWidth"]:
           #get the height of the LAST entry of the peak, uses int division // !
@@ -946,10 +955,12 @@ class MrrZe:
           
           peakTmp = list()
           peakTmpInd = list()
+          truncatingPeak = False
         #small peaks can show up again due to dealiasing, get rid of them:
         elif len(peakTmp)>0 and len(peakTmp)<self.co["findPeak_minPeakWidth"]:
           peakTmp = list()
           peakTmpInd = list()
+          truncatingPeak = False
         #no peak
         else:
           continue
