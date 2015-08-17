@@ -2267,7 +2267,7 @@ class mrrRawData:
           if dataLine[0:2] == "T:" or dataLine[0:3] == "MRR":
             # store the first header line as an example, but parse every one
             # to check for the CC and number of spectra variables.
-            if t == 1:
+            if t == 0:
               self.header = dataLine
             headerLineCC, headerLineNumSpectra = self.parseHeaderLine(dataLine, fileFormat)
             if headerLineCC is not None:
