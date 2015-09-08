@@ -36,10 +36,40 @@ import glob
 from copy import deepcopy
 import warnings
 import sys
+import os
 
 import IMProTooTools
 
 __version__ = "0.99"
+
+
+def _get_netCDF_module(ncForm="NETCDF3"):
+  '''
+  helper function to determine which netCDF module is loaded, to enable 
+  consistency between the various writeNetCDF methods.
+
+  Returns both 'nc' (the netCDF module) and 'pyNC', a bool variable which 
+  controls how some attribute data is set, and how to create the netCDF file 
+  (since the function is different in the various netCDF modules.)
+  '''
+
+  #most syntax is identical, but there is one nasty difference regarding the fillValue...
+  if ncForm in ["NETCDF3_CLASSIC", "NETCDF3_64BIT", "NETCDF4_CLASSIC", "NETCDF4"]:
+    import netCDF4 as nc
+    pyNc = True
+  elif ncForm in ["NETCDF3"]:
+    try:
+      import Scientific.IO.NetCDF as nc
+      pyNc = False
+    except:
+      #fallback for netcdf3 with the same syntax as netcdf4!
+      import netCDF3 as nc
+      pyNc = True
+    else:
+      raise ValueError("Unknown nc form "+ncForm)
+
+  return nc, pyNc
+
 
 class MrrZe:
   '''
@@ -1398,7 +1428,7 @@ class MrrZe:
     
     
     
-  def writeNetCDF(self,fname,varsToSave="all",ncForm="NETCDF3"):
+  def writeNetCDF(self,fname,varsToSave="all",ncForm="NETCDF3_CLASSIC"):
     '''
     write the results to a netcdf file
     
@@ -1409,20 +1439,7 @@ class MrrZe:
     ncForm: str netcdf file format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package, NETCDF3 takes the "old" Scientific.IO.NetCDF module, which is a bit more convinient to install or as fall back option python-netcdf3
     '''
     
-    #most syntax is identical, but there is one nasty difference regarding the fillValue...
-    if ncForm in ["NETCDF3_CLASSIC", "NETCDF3_64BIT", "NETCDF4_CLASSIC", "NETCDF4"]:
-            import netCDF4 as nc
-            pyNc = True
-    elif ncForm in ["NETCDF3"]:
-            try:
-                    import Scientific.IO.NetCDF as nc
-                    pyNc = False
-            except:
-                    #fallback for netcdf3 with the same syntax as netcdf4!
-                    import netCDF3 as nc
-                    pyNc = True
-    else:
-            raise ValueError("Unknown nc form "+ncForm)
+    nc, pyNc = _get_netCDF_module(ncForm=ncForm)
     
     #option dealiaseSpectrum_saveAlsoNonDealiased makes only sence, if spectrum is really dealiased:
     saveAlsoNonDealiased = self.co["dealiaseSpectrum_saveAlsoNonDealiased"] and self.co["dealiaseSpectrum"]
@@ -1692,17 +1709,54 @@ class mrrProcessedData:
   '''
   missingNumber = -9999
   
-  def __init__(self,fname,debugLimit = 0,maskData=True,verbosity=2):
+  def __init__(self,fname,debugLimit = 0,maskData=True,verbosity=2,ncForm="NETCDF3_CLASSIC"):
     """
     reads MRR Average or Instantaneous data. The data is not converted, no magic! The input files can be .gz compressed. Invalid or missing data is marked as nan
 
-    @parameter fname (str or list): list of files or Filename, wildcards allowed!
+    @parameter fname (str or list): list of files or Filename, wildcards allowed, or 
+               a single netCDF filename if reading from a file previously 
+               created by mrrProcessedData.writeNetCDF()
     @parameter debugLimit (int): stop after debugLimit timestamps
     @parameter maskData (bool): mask nan's in arrays
     @parameter verbosity (int): 0: silent exept warnings/errors, 2:verbose
+    @parameter ncForm (string): set netCDF format
     
     No return, but provides MRR dataset variables 
     """
+
+
+    # If this is a single filename input, and it is a netCDF 
+    # (extension is nc or cdf), then read it directly and return.
+    if type(fname) is str:
+      if os.path.splitext(fname)[1] in ('.nc', '.cdf'):
+
+        nc, pyNc = _get_netCDF_module(ncForm=ncForm)
+
+        if pyNc: cdfFile = nc.Dataset(fname,"r",format=ncForm)
+        else: cdfFile = nc.NetCDFFile(fname,"r")
+
+        self.header = cdfFile.getncattr('mrrHeader')
+        self.mrrTimestamps = cdfFile.variables['time'][:]
+        self.mrrH = cdfFile.variables['MRR_H'][:]
+        self.mrrTF = cdfFile.variables['MRR_TF'][:]
+        self.mrrF = cdfFile.variables['MRR_F'][:]
+        self.mrrD = cdfFile.variables['MRR_D'][:]
+        self.mrrN = cdfFile.variables['MRR_N'][:]
+        self.mrrK = cdfFile.variables['MRR_K'][:]
+        self.mrrCapitalZ = cdfFile.variables['MRR_Capital_Z'][:]
+        self.mrrSmallz = cdfFile.variables['MRR_Small_z'][:]
+        self.mrrPIA = cdfFile.variables['MRR_PIA'][:]
+        self.mrrRR = cdfFile.variables['MRR_RR'][:]
+        self.mrrLWC = cdfFile.variables['MRR_LWC'][:]
+        self.mrrW = cdfFile.variables['MRR_W'][:]
+
+        cdfFile.close()
+
+        self.shape2D = np.shape(self.mrrH)
+        self.shape3D = np.shape(self.mrrF)
+
+        return
+
     #some helper functions!
     def splitMrrAveData(string,debugTime,floatInt):
       '''
@@ -1963,33 +2017,20 @@ class mrrProcessedData:
     if verbosity > 0: print "done reading"
   #end def __init__
 
-  def write2NetCDF(self,fileOut,author="IMProToo",description="MRR Averaged or Processed Data",netcdfFormat = 'NETCDF3_CLASSIC'):
+  def writeNetCDF(self,fileOut,author="IMProToo",description="MRR Averaged or Processed Data",ncForm="NETCDF3_CLASSIC"):
     '''
     writes MRR Average or Instantaneous Data into Netcdf file
   
     @parameter fileOut (str): netCDF file name
     @parameter author (str): Author for netCDF meta data (default:IMProToo)
     @parameter description (str): Description for NetCDF Metadata (default: empty)
-    @parameter netcdfFormat (str): netCDF Format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package, NETCDF3 takes the "old" Scientific.IO.NetCDF module, which is a bit more convinient to install or as fall back option python-netcdf3
+    @parameter ncForm (str): netCDF Format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package, NETCDF3 takes the "old" Scientific.IO.NetCDF module, which is a bit more convinient to install or as fall back option python-netcdf3
 
-'''
+    '''
 
-   #most syntax between netcdf packages is identical, but there is one nasty difference regarding the fillValue...
-    if netcdfFormat in ["NETCDF3_CLASSIC", "NETCDF3_64BIT", "NETCDF4_CLASSIC", "NETCDF4"]:
-      import netCDF4 as nc
-      pyNc = True
-    elif netcdfFormat in ["NETCDF3"]:
-      try:
-        import Scientific.IO.NetCDF as nc
-        pyNc = False
-      except:
-        #fallback for old netCDF3 with the same syntax as netcdf4!
-        import netCDF3 as nc
-        pyNc = True
-    else:
-      raise ValueError("Unknown nc form "+netcdfFormat)
+    nc, pyNc = _get_netCDF_module(ncForm=ncForm)
       
-    if pyNc: cdfFile = nc.Dataset(fileOut,"w",format=netcdfFormat)
+    if pyNc: cdfFile = nc.Dataset(fileOut,"w",format=ncForm)
     else: cdfFile = nc.NetCDFFile(fileOut,"w")
     
     fillVDict = dict()
@@ -2093,7 +2134,7 @@ class mrrProcessedData:
     
     cdfFile.close()
     print("done")
-  #end def write2NetCDF
+  #end def writeNetCDF
 #end class MrrData
 
 class mrrRawData:
@@ -2104,15 +2145,20 @@ class mrrRawData:
   
   missingNumber = -9999
   
-  def __init__(self,fname,debugStart=0,debugLimit = 0,maskData = True):
+  def __init__(self,fname,debugStart=0,debugLimit = 0,maskData = True,ncForm="NETCDF3_CLASSIC"):
     """
-    reads MRR raw data. The data is not converted, no magic! The input files can be .gz compressed. Invalid or Missing data is marked as nan and masked
+    reads MRR raw data. The data is not converted, no magic! The input files can be .gz compressed.
+    A single netCDF file can be input, that was previously created from mrrRawData.writeNetCDF()
+    Invalid or Missing data is marked as nan and masked
     
     Since MRR raw data can contains all teh data transfered on the serial bus, a lot warnings can be raised. Usually these can be ignored.
     
     @parameter fname (str or list): list of files or Filename, wildcards allowed!
+               a single netCDF filename if reading from a file previously 
+               created by mrrProcessedData.writeNetCDF()
     @parameter debugstart (int): start after debugstart timestamps
     @parameter debugLimit (int): stop after debugLimit timestamps
+    @parameter ncForm (string): set netCDF format
     
     provides:
     mrrRawTime (numpy int64): timestamps in seconds since 01-01-1970 (time)
@@ -2123,6 +2169,30 @@ class mrrRawData:
     
     self.defaultSpecPer10Sec = 58    #only provided in newer Firmware, has to guessed for older ones
 
+    # If this is a single filename input, and it is a netCDF 
+    # (extension is nc or cdf), then read it directly and return.
+    if type(fname) is str:
+      if os.path.splitext(fname)[1] in ('.nc', '.cdf'):
+
+        nc, pyNc = _get_netCDF_module(ncForm=ncForm)
+
+        if pyNc: cdfFile = nc.Dataset(fname,"r",format=ncForm)
+        else: cdfFile = nc.NetCDFFile(fname,"r")
+
+        self.header = cdfFile.getncattr('mrrHeader')
+        self.mrrRawCC = cdfFile.getncattr('mrrCalibrationConstant')
+        self.mrrRawHeight = cdfFile.variables['MRR rangegate'][:]
+        self.mrrRawTime = cdfFile.variables['MRR time'][:]
+        self.mrrRawTF = cdfFile.variables['MRR_TF'][:]
+        self.mrrRawSpectrum = cdfFile.variables['MRR_Spectra'][:]
+        self.mrrRawNoSpec = cdfFile.variables['MRR_NoSpectra'][:]
+
+        cdfFile.close()
+
+        self.shape2D = np.shape(self.mrrRawHeight)
+        self.shape3D = np.shape(self.mrrRawSpectrum)
+
+        return
     
     #some helper functions
     def rawEsc(string,floatInt):
@@ -2366,7 +2436,7 @@ class mrrRawData:
 
   #end def __init__
   
-  def write2NetCDF(self,fileOut,author="IMProToo",description="MRR Raw Data",netcdfFormat = 'NETCDF3_CLASSIC'):
+  def writeNetCDF(self,fileOut,author="IMProToo",description="MRR Raw Data",ncForm='NETCDF3_CLASSIC'):
     '''
     writes MRR raw Data into Netcdf file
   
@@ -2375,22 +2445,10 @@ class mrrRawData:
     @parameter description (str): Description for NetCDF Metadata (default: empty)
     @parameter netcdfFormat (str): netcdf format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package, NETCDF3 takes the "old" Scientific.IO.NetCDF module, which is a bit more convinient to install or as fall back option python-netcdf3
     '''
-   #most syntax between netcdf packages is identical, but there is one nasty difference regarding the fillValue...
-    if netcdfFormat in ["NETCDF3_CLASSIC", "NETCDF3_64BIT", "NETCDF4_CLASSIC", "NETCDF4"]:
-      import netCDF4 as nc
-      pyNc = True
-    elif netcdfFormat in ["NETCDF3"]:
-      try:
-        import Scientific.IO.NetCDF as nc
-        pyNc = False
-      except:
-        #fallback for old netCDF3 with the same syntax as netcdf4!
-        import netCDF3 as nc
-        pyNc = True
-    else:
-      raise ValueError("Unknown nc form "+netcdfFormat)
+
+    nc, pyNc = _get_netCDF_module(ncForm=ncForm)
       
-    if pyNc: cdfFile = nc.Dataset(fileOut,"w",format=netcdfFormat)
+    if pyNc: cdfFile = nc.Dataset(fileOut,"w",format=ncForm)
     else: cdfFile = nc.NetCDFFile(fileOut,"w")
 
     print("writing %s ..."%(fileOut))
