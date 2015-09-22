@@ -217,5 +217,31 @@ def limitMaInidces(iArray,max):
   return reArray.reshape(shape)
 
    
-      
+def _get_netCDF_module(ncForm="NETCDF3"):
+  '''
+  helper function to determine which netCDF module is loaded, to enable 
+  consistency between the various writeNetCDF methods.
+
+  Returns both 'nc' (the netCDF module) and 'pyNC', a bool variable which 
+  controls how some attribute data is set, and how to create the netCDF file 
+  (since the function is different in the various netCDF modules.)
+  '''
+
+  #most syntax is identical, but there is one nasty difference regarding the fillValue...
+  if ncForm in ["NETCDF3_CLASSIC", "NETCDF3_64BIT", "NETCDF4_CLASSIC", "NETCDF4"]:
+    import netCDF4 as nc
+    pyNc = True
+  elif ncForm in ["NETCDF3"]:
+    try:
+      import Scientific.IO.NetCDF as nc
+      pyNc = False
+    except:
+      #fallback for netcdf3 with the same syntax as netcdf4!
+      import netCDF3 as nc
+      pyNc = True
+    else:
+      raise ValueError("Unknown nc form "+ncForm)
+
+  return nc, pyNc
+
     
