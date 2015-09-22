@@ -2346,9 +2346,11 @@ class mrrRawData:
         dataSet = dataMRR[timestamp]
         for dataLine in dataSet:
           if dataLine[0:2] == "T:" or dataLine[0:3] == "MRR":
-            # store the first header line as an example, but parse every one
-            # to check for the CC and number of spectra variables.
-            if t == 0:
+            # store the first or second header line as an example, but parse every one
+            # to check for the CC and number of spectra variables. The first header line
+            # of MRR data might be messed up after starting the MRR, so the second one 
+            # is used if available.
+            if t in [0,1]:
               self.header = dataLine
             headerLineCC, headerLineNumSpectra = self.parseHeaderLine(dataLine, fileFormat)
             if headerLineCC is not None:
