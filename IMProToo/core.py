@@ -36,8 +36,38 @@ import glob
 from copy import deepcopy
 import warnings
 import sys
+import os
 
 from .tools import unix2date, date2unix ,limitMaInidces, quantile, oneD2twoD
+
+
+
+def _get_netCDF_module(ncForm="NETCDF3"):
+  '''
+  helper function to determine which netCDF module is loaded, to enable 
+  consistency between the various writeNetCDF methods.
+
+  Returns both 'nc' (the netCDF module) and 'pyNC', a bool variable which 
+  controls how some attribute data is set, and how to create the netCDF file 
+  (since the function is different in the various netCDF modules.)
+  '''
+
+  #most syntax is identical, but there is one nasty difference regarding the fillValue...
+  if ncForm in ["NETCDF3_CLASSIC", "NETCDF3_64BIT", "NETCDF4_CLASSIC", "NETCDF4"]:
+    import netCDF4 as nc
+    pyNc = True
+  elif ncForm in ["NETCDF3"]:
+    try:
+      import Scientific.IO.NetCDF as nc
+      pyNc = False
+    except:
+      #fallback for netcdf3 with the same syntax as netcdf4!
+      import netCDF3 as nc
+      pyNc = True
+    else:
+      raise ValueError("Unknown nc form "+ncForm)
+
+  return nc, pyNc
 
 
 class MrrZe:
@@ -900,13 +930,22 @@ class MrrZe:
       peakTmpInd = list()
       peaksStartIndices=list()
       peaksEndIndices = list()
+      truncatingPeak = False
       
       #go through all bins
       for ii,spec in enumerate(completeSpectrum):
         #found peak!
-        if completeSpectrum.mask[ii] == False:
+        withinPeak = (completeSpectrum.mask[ii] == False) and (truncatingPeak == False)
+        if withinPeak:
           peakTmp.append(spec)
           peakTmpInd.append(ii)
+          # if the peak length is now larger than the raw spectrum width, then this peak has 
+          # wrapped around the entire width. Flag will cause the peak to be split in two, because 
+          # the next step within the loop through completeSpectrum will have withinPeak False.
+          if len(peakTmp) >= self.co["widthSpectrum"]:
+            truncatingPeak = True
+            warnings.warn('Truncated peak early. Masked area has wrapped around spectrum width at ' + 
+                          'timestemp ' + str(t) + ', bin number ' + str(ii))
         #3found no peak, but teh last one has to be processed
         elif len(peakTmp)>=self.co["findPeak_minPeakWidth"]:
           #get the height of the LAST entry of the peak, uses int division // !
@@ -945,10 +984,12 @@ class MrrZe:
           
           peakTmp = list()
           peakTmpInd = list()
+          truncatingPeak = False
         #small peaks can show up again due to dealiasing, get rid of them:
         elif len(peakTmp)>0 and len(peakTmp)<self.co["findPeak_minPeakWidth"]:
           peakTmp = list()
           peakTmpInd = list()
+          truncatingPeak = False
         #no peak
         else:
           continue
@@ -1397,7 +1438,7 @@ class MrrZe:
     
     
     
-  def writeNetCDF(self,fname,varsToSave="all",ncForm="NETCDF3"):
+  def writeNetCDF(self,fname,varsToSave="all",ncForm="NETCDF3_CLASSIC"):
     '''
     write the results to a netcdf file
     
@@ -1408,20 +1449,7 @@ class MrrZe:
     ncForm: str netcdf file format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package, NETCDF3 takes the "old" Scientific.IO.NetCDF module, which is a bit more convinient to install or as fall back option python-netcdf3
     '''
     
-    #most syntax is identical, but there is one nasty difference regarding the fillValue...
-    if ncForm in ["NETCDF3_CLASSIC", "NETCDF3_64BIT", "NETCDF4_CLASSIC", "NETCDF4"]:
-            import netCDF4 as nc
-            pyNc = True
-    elif ncForm in ["NETCDF3"]:
-            try:
-                    import Scientific.IO.NetCDF as nc
-                    pyNc = False
-            except:
-                    #fallback for netcdf3 with the same syntax as netcdf4!
-                    import netCDF3 as nc
-                    pyNc = True
-    else:
-            raise ValueError("Unknown nc form "+ncForm)
+    nc, pyNc = _get_netCDF_module(ncForm=ncForm)
     
     #option dealiaseSpectrum_saveAlsoNonDealiased makes only sence, if spectrum is really dealiased:
     saveAlsoNonDealiased = self.co["dealiaseSpectrum_saveAlsoNonDealiased"] and self.co["dealiaseSpectrum"]
@@ -1691,17 +1719,54 @@ class mrrProcessedData:
   '''
   missingNumber = -9999
   
-  def __init__(self,fname,debugLimit = 0,maskData=True,verbosity=2):
+  def __init__(self,fname,debugLimit = 0,maskData=True,verbosity=2,ncForm="NETCDF3_CLASSIC"):
     """
     reads MRR Average or Instantaneous data. The data is not converted, no magic! The input files can be .gz compressed. Invalid or missing data is marked as nan
 
-    @parameter fname (str or list): list of files or Filename, wildcards allowed!
+    @parameter fname (str or list): list of files or Filename, wildcards allowed, or 
+               a single netCDF filename if reading from a file previously 
+               created by mrrProcessedData.writeNetCDF()
     @parameter debugLimit (int): stop after debugLimit timestamps
     @parameter maskData (bool): mask nan's in arrays
     @parameter verbosity (int): 0: silent exept warnings/errors, 2:verbose
+    @parameter ncForm (string): set netCDF format
     
     No return, but provides MRR dataset variables 
     """
+
+
+    # If this is a single filename input, and it is a netCDF 
+    # (extension is nc or cdf), then read it directly and return.
+    if type(fname) is str:
+      if os.path.splitext(fname)[1] in ('.nc', '.cdf'):
+
+        nc, pyNc = _get_netCDF_module(ncForm=ncForm)
+
+        if pyNc: cdfFile = nc.Dataset(fname,"r",format=ncForm)
+        else: cdfFile = nc.NetCDFFile(fname,"r")
+
+        self.header = cdfFile.getncattr('mrrHeader')
+        self.mrrTimestamps = cdfFile.variables['time'][:]
+        self.mrrH = cdfFile.variables['MRR_H'][:]
+        self.mrrTF = cdfFile.variables['MRR_TF'][:]
+        self.mrrF = cdfFile.variables['MRR_F'][:]
+        self.mrrD = cdfFile.variables['MRR_D'][:]
+        self.mrrN = cdfFile.variables['MRR_N'][:]
+        self.mrrK = cdfFile.variables['MRR_K'][:]
+        self.mrrCapitalZ = cdfFile.variables['MRR_Capital_Z'][:]
+        self.mrrSmallz = cdfFile.variables['MRR_Small_z'][:]
+        self.mrrPIA = cdfFile.variables['MRR_PIA'][:]
+        self.mrrRR = cdfFile.variables['MRR_RR'][:]
+        self.mrrLWC = cdfFile.variables['MRR_LWC'][:]
+        self.mrrW = cdfFile.variables['MRR_W'][:]
+
+        cdfFile.close()
+
+        self.shape2D = np.shape(self.mrrH)
+        self.shape3D = np.shape(self.mrrF)
+
+        return
+
     #some helper functions!
     def splitMrrAveData(string,debugTime,floatInt):
       '''
@@ -1962,33 +2027,20 @@ class mrrProcessedData:
     if verbosity > 0: print "done reading"
   #end def __init__
 
-  def write2NetCDF(self,fileOut,author="IMProToo",description="MRR Averaged or Processed Data",netcdfFormat = 'NETCDF3_CLASSIC'):
+  def writeNetCDF(self,fileOut,author="IMProToo",description="MRR Averaged or Processed Data",ncForm="NETCDF3_CLASSIC"):
     '''
     writes MRR Average or Instantaneous Data into Netcdf file
   
     @parameter fileOut (str): netCDF file name
     @parameter author (str): Author for netCDF meta data (default:IMProToo)
     @parameter description (str): Description for NetCDF Metadata (default: empty)
-    @parameter netcdfFormat (str): netCDF Format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package, NETCDF3 takes the "old" Scientific.IO.NetCDF module, which is a bit more convinient to install or as fall back option python-netcdf3
+    @parameter ncForm (str): netCDF Format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package, NETCDF3 takes the "old" Scientific.IO.NetCDF module, which is a bit more convinient to install or as fall back option python-netcdf3
 
-'''
+    '''
 
-   #most syntax between netcdf packages is identical, but there is one nasty difference regarding the fillValue...
-    if netcdfFormat in ["NETCDF3_CLASSIC", "NETCDF3_64BIT", "NETCDF4_CLASSIC", "NETCDF4"]:
-      import netCDF4 as nc
-      pyNc = True
-    elif netcdfFormat in ["NETCDF3"]:
-      try:
-        import Scientific.IO.NetCDF as nc
-        pyNc = False
-      except:
-        #fallback for old netCDF3 with the same syntax as netcdf4!
-        import netCDF3 as nc
-        pyNc = True
-    else:
-      raise ValueError("Unknown nc form "+netcdfFormat)
+    nc, pyNc = _get_netCDF_module(ncForm=ncForm)
       
-    if pyNc: cdfFile = nc.Dataset(fileOut,"w",format=netcdfFormat)
+    if pyNc: cdfFile = nc.Dataset(fileOut,"w",format=ncForm)
     else: cdfFile = nc.NetCDFFile(fileOut,"w")
     
     fillVDict = dict()
@@ -2092,7 +2144,7 @@ class mrrProcessedData:
     
     cdfFile.close()
     print("done")
-  #end def write2NetCDF
+  #end def writeNetCDF
 #end class MrrData
 
 class mrrRawData:
@@ -2103,15 +2155,20 @@ class mrrRawData:
   
   missingNumber = -9999
   
-  def __init__(self,fname,debugStart=0,debugLimit = 0,maskData = True):
+  def __init__(self,fname,debugStart=0,debugLimit = 0,maskData = True,ncForm="NETCDF3_CLASSIC"):
     """
-    reads MRR raw data. The data is not converted, no magic! The input files can be .gz compressed. Invalid or Missing data is marked as nan and masked
+    reads MRR raw data. The data is not converted, no magic! The input files can be .gz compressed.
+    A single netCDF file can be input, that was previously created from mrrRawData.writeNetCDF()
+    Invalid or Missing data is marked as nan and masked
     
     Since MRR raw data can contains all teh data transfered on the serial bus, a lot warnings can be raised. Usually these can be ignored.
     
     @parameter fname (str or list): list of files or Filename, wildcards allowed!
+               a single netCDF filename if reading from a file previously 
+               created by mrrProcessedData.writeNetCDF()
     @parameter debugstart (int): start after debugstart timestamps
     @parameter debugLimit (int): stop after debugLimit timestamps
+    @parameter ncForm (string): set netCDF format
     
     provides:
     mrrRawTime (numpy int64): timestamps in seconds since 01-01-1970 (time)
@@ -2122,6 +2179,30 @@ class mrrRawData:
     
     self.defaultSpecPer10Sec = 58    #only provided in newer Firmware, has to guessed for older ones
 
+    # If this is a single filename input, and it is a netCDF 
+    # (extension is nc or cdf), then read it directly and return.
+    if type(fname) is str:
+      if os.path.splitext(fname)[1] in ('.nc', '.cdf'):
+
+        nc, pyNc = _get_netCDF_module(ncForm=ncForm)
+
+        if pyNc: cdfFile = nc.Dataset(fname,"r",format=ncForm)
+        else: cdfFile = nc.NetCDFFile(fname,"r")
+
+        self.header = cdfFile.getncattr('mrrHeader')
+        self.mrrRawCC = cdfFile.getncattr('mrrCalibrationConstant')
+        self.mrrRawHeight = cdfFile.variables['MRR rangegate'][:]
+        self.mrrRawTime = cdfFile.variables['MRR time'][:]
+        self.mrrRawTF = cdfFile.variables['MRR_TF'][:]
+        self.mrrRawSpectrum = cdfFile.variables['MRR_Spectra'][:]
+        self.mrrRawNoSpec = cdfFile.variables['MRR_NoSpectra'][:]
+
+        cdfFile.close()
+
+        self.shape2D = np.shape(self.mrrRawHeight)
+        self.shape3D = np.shape(self.mrrRawSpectrum)
+
+        return
     
     #some helper functions
     def rawEsc(string,floatInt):
@@ -2255,48 +2336,33 @@ class mrrRawData:
       rawTFs =  np.ones((specLength,32),dtype=float)*np.nan
       rawNoSpec =  np.zeros(specLength,dtype=int)
 
+      # default value - if the whole file is processed without ever setting mrrRawCC, this
+      # means the file is not usable for Ze calculations, but there is no workaround there.
+      self.mrrRawCC = 0
+
       #go through timestamps and fill up arrays
       for t,timestamp in enumerate(rawTimestamps):
         dataSet = dataMRR[timestamp]
         for dataLine in dataSet:
-	  #
           if dataLine[0:2] == "T:" or dataLine[0:3] == "MRR":
-	    dataLine = dataLine.split()
-            if t == 1:
-              self.header = " ".join(dataLine)  # just one header is exemplarily stored, thus no array
-              if dataLine[6] == 'CC': #old raw file format
-                try: self.mrrRawCC = int(dataLine[7])
-                except: 
-                  warnings.warn('Warning, could not read CC:'+dataLine[6]+" "+dataLine[7])
-                  self.mrrRawCC = 0
-              elif dataLine[9] == 'CC': #new raw file format
-                try: self.mrrRawCC = int(dataLine[10])
-                except: 
-                  warnings.warn('Warning, could not read CC:'+dataLine[9]+" "+dataLine[10])
-                  self.mrrRawCC = 0
-              else:
-                warnings.warn('Warning, could not find Keyword CC in :'+dataLine[6:10])
-                self.mrrRawCC = 0
-            #for all headers, noot only t=1
-
-	    if fileFormat == "new":#only new file format
-	      if dataLine[2] != "UTC":
-		raise IOError("ERROR, time must be UTC!")
-	      if dataLine[16] != "RAW":
-		raise IOError("Was expecting MRR RAW DATA, found: "+" ".join(dataLine[15:]))
-	      if dataLine[11] == 'MDQ': 
-		try: 
-		  rawNoSpec[t] = int(dataLine[13])
-		except: 
-		  warnings.warn('Warning, could not read number of Spectra: "'+dataLine[13]+'", taking default instead: '+self.defaultSpecPer10Sec)
-		  rawNoSpec[t] = self.defaultSpecPer10Sec
-	    elif fileFormat == "old":
-	      #old file dormat
-	      if dataLine[1] != "UTC":
-		raise IOError("ERROR, time must be UTC!")
-	      #this is standard for older software Versions, thus no warning is raised.
-	      rawNoSpec[t] = self.defaultSpecPer10Sec
-	    else: raise IOError("must be either new or old file format!")
+            # store the first or second header line as an example, but parse every one
+            # to check for the CC and number of spectra variables. The first header line
+            # of MRR data might be messed up after starting the MRR, so the second one 
+            # is used if available.
+            if t in [0,1]:
+              self.header = dataLine
+            headerLineCC, headerLineNumSpectra = self.parseHeaderLine(dataLine, fileFormat)
+            if headerLineCC is not None:
+              self.mrrRawCC = headerLineCC
+            if headerLineNumSpectra is not None:
+              rawNoSpec[t] = headerLineNumSpectra
+            else:
+              # if fileFormat is "old", then the default value must always be taken;
+              # otherwise, use the value from the headerLine, if present, otherwise
+              # print a warning, since that means the headerLine had a problem.
+              if fileFormat == "new":
+                warnings.warn('Warning, could not read number of Spectra, taking default instead: '+self.defaultSpecPer10Sec)
+              rawNoSpec[t] = self.defaultSpecPer10Sec
             continue #print timestamp
           elif dataLine[0:3] == "M:h" or dataLine[0] == "H":
             rawHeights[t,:] = splitMrrRawData(dataLine,timestamp,int,startIndex)
@@ -2364,8 +2430,57 @@ class mrrRawData:
     self.shape3D = np.shape(self.mrrRawSpectrum)
 
   #end def __init__
+
+  @staticmethod
+  def parseHeaderLine(headerLine, fileFormat):
+    '''
+    Parses the raw data header line.
+    Tries to parse according to the fileFormat ("old", or "new")
+    Prints a warning if unsuccessful.
+    '''
+
+    tokens = headerLine.split()
+
+    CC = None
+    numSpectra = None
+
+    try:
+      idx = tokens.index('CC')
+    except:
+      warnings.warn('Warning, could not find Keyword CC in :'+headerLine)
+    else:
+      try:
+        CC = int(tokens[idx+1])
+      except:
+        warnings.warn('Warning, could not read CC in: ' + headerLine)
+
+    if fileFormat == "new":
+      if tokens[2] != "UTC":
+        raise IOError("ERROR, time must be UTC!")
+      if tokens[-1] != "RAW":
+        raise IOError("Was expecting MRR RAW DATA, found: "+tokens[-1])
+      try:
+        idx = tokens.index('MDQ')
+      except:
+        warnings.warn('Warning, could not find Keyword MDQ in :'+headerLine)
+      else:
+        try:
+          numSpectra = int(tokens[idx+1])
+        except:
+          warnings.warn('Warning, could not read number of Spectra: in ' + headerLine)
+
+    elif fileFormat == "old":
+      if tokens[1] != "UTC":
+        raise IOError("ERROR, time must be UTC!")
+
+    else:
+      raise IOError("must be either new or old file format!")
+
+
+    return CC, numSpectra
+
   
-  def write2NetCDF(self,fileOut,author="IMProToo",description="MRR Raw Data",netcdfFormat = 'NETCDF3_CLASSIC'):
+  def writeNetCDF(self,fileOut,author="IMProToo",description="MRR Raw Data",ncForm='NETCDF3_CLASSIC'):
     '''
     writes MRR raw Data into Netcdf file
   
@@ -2374,22 +2489,10 @@ class mrrRawData:
     @parameter description (str): Description for NetCDF Metadata (default: empty)
     @parameter netcdfFormat (str): netcdf format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package, NETCDF3 takes the "old" Scientific.IO.NetCDF module, which is a bit more convinient to install or as fall back option python-netcdf3
     '''
-   #most syntax between netcdf packages is identical, but there is one nasty difference regarding the fillValue...
-    if netcdfFormat in ["NETCDF3_CLASSIC", "NETCDF3_64BIT", "NETCDF4_CLASSIC", "NETCDF4"]:
-      import netCDF4 as nc
-      pyNc = True
-    elif netcdfFormat in ["NETCDF3"]:
-      try:
-        import Scientific.IO.NetCDF as nc
-        pyNc = False
-      except:
-        #fallback for old netCDF3 with the same syntax as netcdf4!
-        import netCDF3 as nc
-        pyNc = True
-    else:
-      raise ValueError("Unknown nc form "+netcdfFormat)
+
+    nc, pyNc = _get_netCDF_module(ncForm=ncForm)
       
-    if pyNc: cdfFile = nc.Dataset(fileOut,"w",format=netcdfFormat)
+    if pyNc: cdfFile = nc.Dataset(fileOut,"w",format=ncForm)
     else: cdfFile = nc.NetCDFFile(fileOut,"w")
 
     print("writing %s ..."%(fileOut))
