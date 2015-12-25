@@ -32,7 +32,7 @@ import string
 from copy import deepcopy 
 
 import IMProToo
-from IMProToo.Tools import *
+from IMProToo.tools import *
 try:
   import netCDF4 as nc
   pyNc = True

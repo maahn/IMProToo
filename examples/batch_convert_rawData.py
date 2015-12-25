@@ -7,6 +7,7 @@ import sys
 import numpy as np
 import glob
 import os
+import datetime
 import IMProToo
 
 
@@ -28,16 +29,31 @@ try: os.mkdir(pathOut)
 except OSError: pass
 
 #go through all gz compressed files in pathIn/year/month/
-for nfile in np.sort(glob.glob(pathIn+"/*mrr*raw*")):
-  date = nfile[-15:-7] #expects filename as xxxxxxxxxxx_date.mrr.gz
-  
-  fileOut = pathOut+"/mrr_improtoo_"+version+"_"+site+"_"+date+".nc"
-  
-  if skipExisting and (os.path.isfile(fileOut) or os.path.isfile(fileOut+".gz")):
-    print "NetCDF file aready exists, skipping: ", date, nfile, fileOut
+for nfile in np.sort(glob.glob(pathIn+"/*raw*")):
+  #get the timestamp
+  timestamp = None
+  f = open(nfile, 'r')
+  try:
+    for string in f:
+      if string[:2] == "T:":
+        timestamp = datetime.datetime.strptime(string[2:14],"%y%m%d%H%M%S").strftime("%Y%m%d")
+        break
+      elif string[:4] == "MRR ":
+        timestamp = datetime.datetime.strptime(string[4:16],"%y%m%d%H%M%S").strftime("%Y%m%d")
+        break
+  finally:    
+    f.close()
+  if timestamp is None:
+    print "did not find MRR timesamp in %s, Skipping", nfile
     continue
   
-  print date, nfile, fileOut
+  fileOut = pathOut+"/mrr_improtoo_"+version+"_"+site+"_"+timestamp+".nc"
+  
+  if skipExisting and (os.path.isfile(fileOut) or os.path.isfile(fileOut+".gz")):
+    print "NetCDF file aready exists, skipping: ", timestamp, nfile, fileOut
+    continue
+  
+  print timestamp, nfile, fileOut
 
   #load raw data from file
   print "reading...",nfile
@@ -52,7 +68,7 @@ for nfile in np.sort(glob.glob(pathIn+"/*mrr*raw*")):
     #average rawData to 60s
     processedSpec.averageSpectra(60)
     #the MRR at 'lyr' was affected by interference for some days, dealiasing routine needs to know about that:
-    if site == "lyr" and date in ['20100620','20100621','20100622', '20100623', '20100624', '20100625', '20100626', '20100627','20100628','20100629','20100630','20100701','20100702','20100703','20100704','20100705','20100706', '20100707']:
+    if site == "lyr" and timestamp in ['20100620','20100621','20100622', '20100623', '20100624', '20100625', '20100626', '20100627','20100628','20100629','20100630','20100701','20100702','20100703','20100704','20100705','20100706', '20100707']:
       processedSpec.co['dealiaseSpectrum_heightsWithInterference'] =  processedSpec.co['dealiaseSpectrum_heightsWithInterference'] + [25,26,27,28,29,30]
     #creator attribute of netCDF file
     processedSpec.co["ncCreator"] = "M.Maahn, IGM University of Cologne"    
