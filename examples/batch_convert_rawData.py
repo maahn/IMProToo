@@ -33,6 +33,18 @@ for nfile in np.sort(glob.glob(pathIn+"/*raw*")):
   #get the timestamp
   timestamp = None
   f = open(nfile, 'r')
+  # Sometimes the first MRR timestamps are from the day before, so we cannot take the first date we found. get list of line breaks
+  line_offset = []
+  offset = 0
+  for line in f:
+      line_offset.append(offset)
+      offset += len(line)
+  f.seek(0)
+
+  # Now, to skip 20% of the file
+  f.seek(line_offset[len(line_offset)//5])  
+  
+  #now find the date
   try:
     for string in f:
       if string[:2] == "T:":
@@ -43,6 +55,7 @@ for nfile in np.sort(glob.glob(pathIn+"/*raw*")):
         break
   finally:    
     f.close()
+  
   if timestamp is None:
     print "did not find MRR timesamp in %s, Skipping", nfile
     continue
