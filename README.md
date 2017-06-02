@@ -24,6 +24,7 @@ The software is developed for python 2.7 and should run on any recent Linux syst
 
 The following python packages are required:
   * numpy
+  * scipy
   * matplotlib (for plotting only)
   * netcdf4-python http://code.google.com/p/netcdf4-python/ OR python-netcdf (for saving the results only)
 
@@ -85,4 +86,4 @@ write all variables to a netCDF file.
 
 
 ## Questions
-In case of any questions, please don't hesitate to contact Maximilian Maahn: mmaahn_(AT)_meteo_DOT_uni-koeln_DOT_de
+In case of any questions, please don't hesitate to contact Maximilian Maahn: maximilian.maahn_(AT)_colorado_DOT_edu

@@ -1050,8 +1050,8 @@ class MrrZe:
     trustedPeakHeight = np.zeros(self.no_t,dtype=int)
     trustedPeakVel = np.zeros(self.no_t)
     trustedPeakNo = np.ones(self.no_t,dtype=int)*-9999
-    trustedPeakHeightStart = np.zeros(self.no_t)
-    trustedPeakHeightStop = np.zeros(self.no_t)
+    trustedPeakHeightStart = np.zeros(self.no_t,dtype=int)
+    trustedPeakHeightStop = np.zeros(self.no_t,dtype=int)
     for t in np.arange(self.no_t):
       #now process the found peaks
       if t in self._allPeaks.keys():
