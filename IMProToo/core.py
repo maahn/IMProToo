@@ -2053,10 +2053,10 @@ class mrrProcessedData:
     nc_f.units = 'dB'
     
     nc_d  = cdfFile.createVariable('MRR_D','f',('time','MRR rangegate','MRR spectralclass',),**fillVDict)
-    nc_d.units = 'm^-3 mm^-1'
+    nc_d.units = 'mm'
     
     nc_n  = cdfFile.createVariable('MRR_N','f',('time','MRR rangegate','MRR spectralclass',),**fillVDict)
-    nc_n.units = '#'
+    nc_n.units = 'm^-3 mm^-1'
     
     nc_k  = cdfFile.createVariable('MRR_K','f',('time','MRR rangegate',),**fillVDict)
     nc_k.units = 'dB'
