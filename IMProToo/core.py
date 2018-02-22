@@ -608,7 +608,11 @@ class MrrZe:
   
   def _getPeakHildebrand(self,dataFlat,iMax,noSpecs,h):
     """
-    get the peak of the spectrum using Hildebrand algorithm.
+    get the peak of the spectrum using Hildebrand algorithm. Note that this routine works
+    'the other way around' than e.g. pamtra's or pyart's Hildebrand routine. I.e. we start
+    with the full spectrum and remove the largest bins instead of starting with the 
+    smallest values and adding larger ones. This is more robust for the MRR. also 
+    getPeak_hildeExtraLimit works better for MRR than teh traditional threshold definition from HS74.
     
     @parameter dataFlat (numpy float64): flat spectrum from MRR Raw data
     @parameter iMax (numpy float64): vector containing indices of the maxima
