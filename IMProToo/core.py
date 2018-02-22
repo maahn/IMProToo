@@ -2151,7 +2151,7 @@ class mrrRawData:
     mrrRawSpectrum (numpy float64): spectral reflectivities of MRR raw data (time*height*velocity)
     """
     
-    self.defaultSpecPer10Sec = 58    #only provided in newer Firmware, has to guessed for older ones
+    self.defaultSpecPer10Sec = 58    #only provided in newer Firmware, has to be guessed for older ones
 
     # If this is a single filename input, and it is a netCDF 
     # (extension is nc or cdf), then read it directly and return.
@@ -2439,7 +2439,7 @@ class mrrRawData:
         warnings.warn('Warning, could not find Keyword MDQ in :'+headerLine)
       else:
         try:
-          numSpectra = int(tokens[idx+1])
+          numSpectra = int(tokens[idx+2])
         except:
           warnings.warn('Warning, could not read number of Spectra: in ' + headerLine)
 
