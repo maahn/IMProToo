@@ -462,9 +462,12 @@ class MrrZe:
 
     std = (np.ma.std(spec,axis=-1)/np.ma.mean(spec,axis=-1))
     
-    maxStd =  self.co["findPeak_minStdPerS"]/np.sqrt(self.co["averagingTime"])
+    #the 5.7 is because we have typically 5.7 spectra per second and this 
+    #quantitiy was defined with self.co["averagingTime"] instead of
+    #self.noSpecPerTimestep before
+    maxStd =  self.co["findPeak_minStdPerS"]/np.sqrt(self.noSpecPerTimestep/5.7)
     
-    return std.filled(0) < maxStd,std.filled(0)
+    return std.filled(0) < maxStd[:,np.newaxis], std.filled(0)
 
   def _findAddtionalPeaks(self,rawSpectrum):
     '''
