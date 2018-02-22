@@ -718,10 +718,9 @@ class MrrZe:
     """
     
     maskDescAve = np.ones(np.shape(dataFlat),dtype=bool)
-    #pdb.set_trace()
-    if "new" == "new":
-      #iterate through spectras:
-      for k in np.arange(iMax.shape[0]):
+
+    #iterate through spectras:
+    for k in np.arange(iMax.shape[0]):
         #the rolling allow recognition also if 0 m/s is crossed
         rolledSpectrum = np.roll(dataFlat[k],-iMax[k])
         rolledMask = np.roll(maskDescAve[k],-iMax[k])
@@ -750,30 +749,7 @@ class MrrZe:
             break
         dataFlat[k] = np.roll(rolledSpectrum,iMax[k])
         maskDescAve[k] = np.roll(rolledMask,iMax[k])
-    else:
-      #iterate through spectras:
-      for k in np.arange(iMax.shape[0]):
-        meanRightOld = np.ma.mean(dataFlat[k,iMax[k]:])
-        meanLeftOld = np.ma.mean(dataFlat[k,:iMax[k]+1])
-        maskDescAve[k,iMax[k]] = False
-        #to the right:
-        for i in np.arange(iMax[k]+1,dataFlat.shape[-1],1):
-          meanRight = np.ma.mean(dataFlat[k,i:])
-          #is the average still decraesing?
-          if meanRight<meanRightOld:
-            maskDescAve[k,i] = False
-            meanRightOld = meanRight
-          else:
-            break
-        #to the left
-        for i in np.arange(iMax[k]-1,0-1,-1):
-          meanLeft = np.ma.mean(dataFlat[k,:i+1])
-          #is the average still decraesing?
-          if meanLeft<meanLeftOld:
-            maskDescAve[k,i] = False
-            meanLeftOld = meanLeft
-          else:
-            break
+
     return maskDescAve
 
         
