@@ -525,19 +525,19 @@ class MrrZe:
       #for h in np.arange(4,28):
       for h in np.arange(2,30):
         if  noiseMask[t,h] == False:
-	  tSM = t+2 # for subMaxs t needs to be 2 larger due to 2 pixel border! for h not neccesary, 2 pixel border at botztom already there
-	  subMaxs = maxs[tSM-2:tSM+3,h-2:h+3]
-	  thisMaxsDiff = 32-maxs[tSM,h]
-	  subMaxsNormed = limitMaInidces(subMaxs + thisMaxsDiff,64)
-	  diffs = np.abs(subMaxsNormed - 32)
-	  
-	  if t in [0,self.no_t-1] or h in [2,29]:
-	    limit = lowestLimit
-	  elif t in [1,self.no_t-2] or h in [3,28]:
-	    limit = lowLimit 
-	  else:
-	    limit = highLimit
-	    
+          tSM = t+2 # for subMaxs t needs to be 2 larger due to 2 pixel border! for h not neccesary, 2 pixel border at botztom already there
+          subMaxs = maxs[tSM-2:tSM+3,h-2:h+3]
+          thisMaxsDiff = 32-maxs[tSM,h]
+          subMaxsNormed = limitMaInidces(subMaxs + thisMaxsDiff,64)
+          diffs = np.abs(subMaxsNormed - 32)
+          
+          if t in [0,self.no_t-1] or h in [2,29]:
+            limit = lowestLimit
+          elif t in [1,self.no_t-2] or h in [3,28]:
+            limit = lowLimit 
+          else:
+            limit = highLimit
+            
           if np.ma.sum(diffs <= self.co["confirmPeak_5x5boxCoherenceTest_maxBinDistane"])<limit:
             newMask[t,h] = True
      
@@ -1134,7 +1134,7 @@ class MrrZe:
           if thisPeakHeight not in range(self.co["noH"]):
             warnings.warn('Dealiasing failed! peak boundaries excced max/min height. time step '+str(t)+', peak number '+ str(jj)+', tried to put at height '+ str(thisPeakHeight))
             self.qual["severeProblemsDuringDA"][t] = True
-	    continue
+            continue
           thisPeakSpecShift = thisPeakHeight*self.co["widthSpectrum"] - self.co["widthSpectrum"]
           thisPeakVel = peaksVels[UpOrDn][jj]
           thisPeakHeightIndices = np.array(allPeaksIndices[t][jj])-thisPeakSpecShift
@@ -1159,10 +1159,10 @@ class MrrZe:
             formerPeakVelList[UpOrDn] = 1e10 #make extremely big
             UpOrDn2 = np.ma.argmin(np.abs(peaksVels[:,jj] - formerPeakVelList))
             thisPeakHeight = allPeaksHeight[t][jj] + UpOrDn2-1
-	    if thisPeakHeight not in range(self.co["noH"]):
-	      warnings.warn('Dealiasing step 2 failed! peak boundaries excced max/min height. time step '+str(t)+', peak number '+ str(jj)+', tried to put at height '+ str(thisPeakHeight))
-	      self.qual["severeProblemsDuringDA"][t] = True        
-	      continue
+            if thisPeakHeight not in range(self.co["noH"]):
+              warnings.warn('Dealiasing step 2 failed! peak boundaries excced max/min height. time step '+str(t)+', peak number '+ str(jj)+', tried to put at height '+ str(thisPeakHeight))
+              self.qual["severeProblemsDuringDA"][t] = True        
+              continue
             thisPeakSpecShift = thisPeakHeight*self.co["widthSpectrum"] - self.co["widthSpectrum"]
             thisPeakVel = peaksVels[UpOrDn2][jj]
             thisPeakHeightIndices = np.array(allPeaksIndices[t][jj])-thisPeakSpecShift
@@ -2271,13 +2271,13 @@ class mrrRawData:
           if i != 0:
             dataMRR[prevDate] = tmpList
           tmpList = []
-	  if line[0:2] == "T:":
-	    asciiDate = line[2:14] #old mrr raw data
-	    fileFormat = "old" #if there
-	  elif line[0:4] == "MRR ":
-	    asciiDate = line[4:16] #new mrr raw spectra
-	  else:
-	    raise IOError("must be either new or old file format!")
+          if line[0:2] == "T:":
+            asciiDate = line[2:14] #old mrr raw data
+            fileFormat = "old" #if there
+          elif line[0:4] == "MRR ":
+            asciiDate = line[4:16] #new mrr raw spectra
+          else:
+            raise IOError("must be either new or old file format!")
           # Script wants UTC!
           date = datetime.datetime(year = 2000+int(asciiDate[0:2]), month = int(asciiDate[2:4]), day = int(asciiDate[4:6]), hour = int(asciiDate[6:8]), minute = int(asciiDate[8:10]), second = int(asciiDate[10:12]))
           date = int(date2unix(date))
@@ -2297,11 +2297,11 @@ class mrrRawData:
         pass
     
       if fileFormat == "new":
-	startIndex = 3
+        startIndex = 3
       elif fileFormat == "old":
-	startIndex = 6
+        startIndex = 6
       else: raise IOError("must be either new or old file format!")
-	
+        
       if debugLimit == 0:
         debugLimit = len(dataMRR.keys())
         
@@ -2350,10 +2350,10 @@ class mrrRawData:
             continue #print "TF"
           elif dataLine[0:3] == "M:f" or  dataLine[0] == "F":
             try:
-	      if fileFormat == "old":
-		specBin = int(dataLine[3:5])
-	      else: 
-		specBin = int(dataLine[1:3])     
+              if fileFormat == "old":
+                specBin = int(dataLine[3:5])
+              else: 
+                specBin = int(dataLine[1:3])     
             except:
               warnings.warn("######### Warning, Corrupt data header at "+ str(unix2date(timestamp))+ ", " + str(timestamp) + ", "+ dataLine+" #########")
               continue
