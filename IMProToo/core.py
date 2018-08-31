@@ -2803,7 +2803,7 @@ class mrrProRawData:
 
     missingNumber = -9999
 
-    def __init__(self, fname, debugStart=0, debugLimit=0):
+    def __init__(self, fname, debugStart=0, debugLimit=0, defaultSpecPer10Sec= 58):
         """
         reads MRR Pro raw data. The data is not converted, no magic! The input files have to be RR Pro netcdf files
 
@@ -2820,9 +2820,7 @@ class mrrProRawData:
         mrrRawSpectrum (numpy float64): spectral reflectivities of MRR raw data (time*height*velocity)
         """
 
-        # not sure how to get this for MRR Pro yet
-        self.defaultSpecPer10Sec = 58
-
+        # not sure how to get this for MRR Pro yetd
         
         cdfFile = xr.open_dataset(fname).isel(time=slice(debugStart,None,None))
         if debugLimit != 0:
@@ -2839,7 +2837,7 @@ class mrrProRawData:
         self.mrrRawHeight = (xr.ones_like(cdfFile.time.astype(float)) * cdfFile.range).values
         self.mrrRawTF = (xr.ones_like(cdfFile.time.astype(float)) * cdfFile.transfer_function).values
         self.mrrRawSpectrum = cdfFile.spectrum_raw.values
-        self.mrrRawNoSpec = np.array([self.defaultSpecPer10Sec]*len(cdfFile.time))
+        self.mrrRawNoSpec = np.array([defaultSpecPer10Sec]*len(cdfFile.time))
 
         cdfFile.close()
 
