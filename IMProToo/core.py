@@ -28,6 +28,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import division
 import numpy as np
+import xarray as xr
 import gzip
 import re
 import datetime
@@ -48,11 +49,13 @@ class MrrZe:
     '''
     class to calculate the 'real' MRR Ze from MRR raw data. The spectra are
     noise corrected and dealiased. see batch_convert_rawData.py for
-    exemplary use
+    exemplary use. Use configuration dictionary to change settings.
+    See code for options & defaults.
+
     '''
     warnings.filterwarnings('always', '.*', UserWarning,)
 
-    def __init__(self, rawData):
+    def __init__(self, rawData, configuration={}):
 
         if rawData.mrrRawCC == 0:
             print('WARNING: MRR calibration constant set to 0!')
@@ -210,7 +213,9 @@ class MrrZe:
 
         # ######end of settings#######
 
-        # special option to top processing in the middel and return results
+        self.co.update(configuration)
+
+        # special option to stop processing in the middle and return results
         self.debugStopper = 0
 
         self.missingNumber = -9999.
@@ -279,7 +284,7 @@ class MrrZe:
             # boolean array containing the wanted entries
             booleanTimes = (rawTimestamps < timestamp) * \
                 (rawTimestamps >= timestamp-averagingTime)
-            aveLength = len(booleanTimes[booleanTimes is True])
+            aveLength = np.sum(booleanTimes)
             # proceed only if entries were found
             if aveLength != 0:
                 # and if TF and heights are NOT changing and if heights are
@@ -547,7 +552,7 @@ class MrrZe:
         std = (np.ma.std(spec, axis=-1)/np.ma.mean(spec, axis=-1))
 
         # the 5.7 is because we have typically 5.7 spectra per second and this
-        # quantitiy was defined with self.co["averagingTime"] instead of
+        # quantity was defined with self.co["averagingTime"] instead of
         # self.noSpecPerTimestep before
         maxStd = self.co["findPeak_minStdPerS"] / \
             np.sqrt(self.noSpecPerTimestep/5.7)
@@ -556,7 +561,7 @@ class MrrZe:
 
     def _findAddtionalPeaks(self, rawSpectrum):
         '''
-        This functio tries to find addtional peaks in the spectrum
+        This function tries to find additional peaks in the spectrum
 
         disabled since it gives too many false positives...
 
@@ -586,7 +591,7 @@ class MrrZe:
         """
         11 of 5x5 points in height/time space must have a signal to be valid!
 
-        @parameter spectrum (numpy masked float): spectrum + noiseMask to be applied to teh data
+        @parameter spectrum (numpy masked float): spectrum + noiseMask to be applied to the data
         @return - newMask (numpy boolean):numpy boolean noiseMask
         """
 
@@ -595,21 +600,20 @@ class MrrZe:
         # make it bigger to cover edges for 5x5 test, 2 pixel border
         maxs = np.ma.masked_all((self.no_t+4, self.no_h+1))
         maxs[2:-2, 2:-2] = np.ma.masked_array(
-            np.ma.argmax(spectrum, axis=-1), noiseMask)[:, 2:30]
+            np.ma.argmax(spectrum, axis=-1), noiseMask)[:, 2:-2]
 
         highLimit = 11
         lowLimit = 9
         lowestLimit = 8
 
-        hOffset = self.co["minH"]  # since we don't start at zero height
-
         # loop through all points...
         for t in np.arange(self.no_t):
-            # is it real signal? only if at least 11 of 25 neigbours have signal as well!
-            # for h in np.arange(4,28):
-            for h in np.arange(2, 30):
-                if noiseMask[t, h] == False:
-                    tSM = t+2  # for subMaxs t needs to be 2 larger due to 2 pixel border! for h not neccesary, 2 pixel border at botztom already there
+            # is it real signal? only if at least 11 of 25 neighbors have signal as well!
+            for h in np.arange(self.co["minH"], self.co["maxH"]+1):
+                if h in self.co["completelyMaskedHeights"]:
+                    continue
+                if noiseMask[t, h] is False:
+                    tSM = t+2  # for subMaxs t needs to be 2 larger due to 2 pixel border! for h not necessary, 2 pixel border at bottom already there
                     subMaxs = maxs[tSM-2:tSM+3, h-2:h+3]
                     thisMaxsDiff = 32-maxs[tSM, h]
                     subMaxsNormed = limitMaInidces(subMaxs + thisMaxsDiff, 64)
@@ -639,10 +643,10 @@ class MrrZe:
         get the peak of the spectrum, first getPeakHildebrand is used, if the spectrum is wider than 10 and makeDoubleCheck = True, also getPeakDescendingAve is used and the smaller one is taken!
 
         @parameter spectrum (numpy float64): (averaged, dealiased) raw data from MRR Raw data
-        @parameter noSpecs (numpy float64):number of single spectras which belong to each average spectrum, usually 58* No of averaged spectra
-        @paramter h, (int): height, for easier debugging
+        @parameter noSpecs (numpy float64):number of single spectra which belong to each average spectrum, usually 58* No of averaged spectra
+        @parameter h, (int): height, for easier debugging
         @return - spectrum (numpy float64): masked(!) spectrum
-        @return - qualiy (dict with array bool)
+        @return - quality (dict with array bool)
         """
         t = time.time()
         quality = dict()
@@ -2788,4 +2792,62 @@ class mrrRawData:
         cdfFile.close()
         print("done")
     # end def write2NetCDF
-# end class MrrData
+# end class MrrRawData
+
+
+
+class mrrProRawData:
+    '''
+    Class to read MRR Pro raw data
+    '''
+
+    missingNumber = -9999
+
+    def __init__(self, fname, debugStart=0, debugLimit=0):
+        """
+        reads MRR Pro raw data. The data is not converted, no magic! The input files have to be RR Pro netcdf files
+
+        Since MRR raw data can contains all teh data transfered on the serial bus, a lot warnings can be raised. Usually these can be ignored.
+
+        @parameter fname (str or list): Filename
+        @parameter debugstart (int): start after debugstart timestamps
+        @parameter debugLimit (int): stop after debugLimit timestamps
+
+        provides:
+        mrrRawTime (numpy int64): timestamps in seconds since 01-01-1970 (time)
+        mrrRawHeight (numpy float64): height levels (time*height)
+        mrrRawTF (numpy float64): Transfer function (time*height)
+        mrrRawSpectrum (numpy float64): spectral reflectivities of MRR raw data (time*height*velocity)
+        """
+
+        # not sure how to get this for MRR Pro yet
+        self.defaultSpecPer10Sec = 58
+
+        
+        cdfFile = xr.open_dataset(fname).isel(time=slice(debugStart,None,None))
+        if debugLimit != 0:
+            cdfFile = cdfFile.isel(time=slice(None,debugLimit,None))
+        
+
+
+        self.header = 'instrument_name: %s; site_name: %s'%(
+            cdfFile.instrument_name,
+            cdfFile.site_name,
+        )
+        self.mrrRawCC = float(cdfFile.calibration_constant.values)
+        self.mrrRawTime = cdfFile.time.values.astype('datetime64[s]').astype(int)
+        self.mrrRawHeight = (xr.ones_like(cdfFile.time.astype(float)) * cdfFile.range).values
+        self.mrrRawTF = (xr.ones_like(cdfFile.time.astype(float)) * cdfFile.transfer_function).values
+        self.mrrRawSpectrum = cdfFile.spectrum_raw.values
+        self.mrrRawNoSpec = np.array([self.defaultSpecPer10Sec]*len(cdfFile.time))
+
+        cdfFile.close()
+
+        self.shape2D = np.shape(self.mrrRawHeight)
+        self.shape3D = np.shape(self.mrrRawSpectrum)
+
+        return
+    # end def __init__
+# end class mrrProRawData
+
+
