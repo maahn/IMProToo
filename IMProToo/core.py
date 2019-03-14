@@ -65,7 +65,8 @@ class MrrZe:
     #######MRR Settings#######
     
     #mrr frequency, MRR after 2011 (or upgraded) use 24.23e9
-    self.co["mrrFrequency"] = 24.15e9 #in Hz,
+    self.co["mrrFrequency"] = 24.23e9 #MrrPro, Mathieu
+    #self.co["mrrFrequency"] =  24.15e9 #in Hz,
     #wavelength in m
     self.co["lamb"] = 299792458. / self.co["mrrFrequency"] 
     #mrr calibration constant
@@ -83,9 +84,11 @@ class MrrZe:
     #spectral resolution
     self.co["widthSpectrum"] = 64
     #min height to be processed
+    #Mathieu
     self.co["minH"] = 1 # start couning at 0
     #max heigth to be processed
-    self.co["maxH"] = 31 # start couning at 0
+    self.co["maxH"] = 126 # start couning at 0
+    # self.co["maxH"] = 31
     #no of processed heights
     self.co["noH"] = self.co["maxH"]+1 - self.co["minH"]
     #shape of spectrum for one time step
@@ -125,22 +128,30 @@ class MrrZe:
     
     #####options for confirming peaks ##########
     #check whether time/height beighbours of a peak contain a peak as well
-    self.co["confirmPeak_5x5boxCoherenceTest"] = True
+    self.co["confirmPeak_5x5boxCoherenceTest"] = True 
     #maximum of other peaks must be within X Dopplerbins of the maximum of the tested peak
     self.co["confirmPeak_5x5boxCoherenceTest_maxBinDistane"] = 10
     
     
     #######general options#######
-    
+    #Mathieu : Modified for 128 range gates
     #process only peaks in self.co["spectrumBorderMin"][height]:self.co["spectrumBorderMax"][height]
-    self.co["spectrumBorderMin"] = [5, 4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 5]
-    self.co["spectrumBorderMax"] =[60,61,62,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,62,61,63]
+    self.co["spectrumBorderMin"] = [5, 4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,\
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,\
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,\
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,\
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 5]
+    self.co["spectrumBorderMax"] = [60,61,62,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,\
+    63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,\
+    63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,\
+     63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,\
+     63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,63,62,61,63]
     #interpolate spectrum inbetween
     self.co["interpolateSpectrum"] = True
     #extend also peaks to interpolated part
     self.co["fillInterpolatedPeakGaps"] = True
-    #mask everything in these heights, since they are disturbed
-    self.co["completelyMaskedHeights"] = [0,1,30]
+    #mask everything in these heights, since they are disturbed. Mathieu : not known for MRR pro 
+    self.co["completelyMaskedHeights"] = []
     #first height with trustfull peaks. Setting important for dealiasing to avoid folding from completelyMaskedHeights into the first used height.
     self.co["firstUsedHeight"] = 2
     
@@ -252,13 +263,13 @@ class MrrZe:
           TFsAve[t] = np.ma.average(TFs[booleanTimes], axis=0)
           noSpecAve[t] = np.ma.sum(noSpec[booleanTimes])
         else:
-          print "Skipping data due to changed MRR configuration!"
+          print( "Skipping data due to changed MRR configuration!")
       else:
         rawSpectraAve[t] = np.nan
         heightsAve[t] = np.nan
         TFsAve[t] = np.nan
         noSpecAve[t] = 0
-        print "No Data at " + str(unix2date(timestamp))
+        print( "No Data at " + str(unix2date(timestamp)))
     
     self.rawSpectrum = rawSpectraAve
     self.time = rawTimestampsAve
@@ -326,10 +337,11 @@ class MrrZe:
     TF3D = np.zeros(self._shape3D)
     TF3D.T[:] = self.TF.T
     self.rawSpectrum = np.ma.masked_array(self.rawSpectrum.data / TF3D,self.rawSpectrum.mask)
- 
+
     #1)missing spectra
     missingMask = np.any(np.isnan(self.rawSpectrum.data),axis=-1)
     self.qual["incompleteSpectrum"] = missingMask
+
     #2) Wdiff
     WdiffMask, self.wdiffs = self._testMeanW(self.rawSpectrum)
 
@@ -338,6 +350,7 @@ class MrrZe:
 
     #join the results
     noiseMask = missingMask+(stdMask*WdiffMask)
+
     self.qual["spectrumVarianceTooLowForPeak"] = stdMask*WdiffMask #2) no signal detected by variance test
 
     #make 3D noise Mask
@@ -363,6 +376,7 @@ class MrrZe:
         specMaxs = self.co["spectrumBorderMax"][h]
         peakMask[:,h,specMins:specMaxs][~noiseMask[:,h]],self.qual["peakTooThinn"][:,h][~noiseMask[:,h]],self.qual["usedSecondPeakAlgorithmDueToWidePeak"][:,h][~noiseMask[:,h]] = self._getPeak(self.rawSpectrum[:,h,specMins:specMaxs][~noiseMask[:,h]],self.noSpecPerTimestep[~noiseMask[:,h]],h)
     #apply results
+
     self.rawSpectrum = np.ma.masked_array(self.rawSpectrum,peakMask)
  
     #what is the noise, but _without_ the borders, we want in noise 3D also 
@@ -379,8 +393,9 @@ class MrrZe:
       coherCheckNoiseMask = np.zeros(self._shape2D,dtype=bool)
       coherCheckNoiseMask3D = np.zeros(self._shape3D,dtype=bool)   
     self.qual["peakRemovedByCoherenceTest"] = coherCheckNoiseMask * (~np.all(self.rawSpectrum.mask,axis=-1))
-    
+
     self.rawSpectrum.mask = self.rawSpectrum.mask + coherCheckNoiseMask3D
+
     if self.debugStopper == 3:  return
     
     #since we have removed more noisy spectra we have to calculate the noise again
@@ -393,6 +408,8 @@ class MrrZe:
     
     #remove the noise
     self.rawSpectrum = np.ma.masked_array(self.rawSpectrum.data - self.specNoise3D, self.rawSpectrum.mask)
+   
+
 
     if self.co["interpolateSpectrum"]:
       #interpolate spectrum
@@ -428,10 +445,14 @@ class MrrZe:
       #since we don't want that spectrum from teh disturbed 1st range gate are folded into the secod on, peaks in the second one might be incomplete. try to make an entry in the quality mask.
       self.qual["peakMightBeIncomplete"] = np.zeros(self._shape2D,dtype=bool)
       self.qual["peakMightBeIncomplete"][:,self.co["firstUsedHeight"]][self.rawSpectrum.mask[:,self.co["firstUsedHeight"],self.co["widthSpectrum"]+self.co["spectrumBorderMin"][self.co["firstUsedHeight"]]] == False ] = True
-      
+    
+
     #no dealiasing  
     else: 
       pass
+
+
+
     self.eta, self.Ze, self.W, self.etaNoiseAve, self.etaNoiseStd, self.specWidth, self.skewness, self.kurtosis, self.peakVelLeftBorder, self.peakVelRightBorder, self.leftSlope, self.rightSlope = self._calcEtaZeW(self.rawSpectrum,self.H,self.specVel3D,self.specNoise,self.specNoise_std)
     #make bin mask out of quality information
     self.qualityBin, self.qualityDesc = self.getQualityBinArray(self.qual)
@@ -481,11 +502,11 @@ class MrrZe:
     #invert mask
     rawSpectrum = np.ma.masked_array(rawSpectrum.data,~rawSpectrum.mask)
     self.co["findAddtionalPeaksThreshold"] = 15
-    for tt in xrange(self.no_t):
-      for hh in xrange(self.no_h):
+    for tt in range(self.no_t):
+      for hh in range(self.no_h):
         if hh in self.co["completelyMaskedHeights"]: continue
         greaterZero = 0
-        for ii in xrange(self.co["spectrumBorderMin"][hh],self.co["spectrumBorderMax"][hh]):
+        for ii in range(self.co["spectrumBorderMin"][hh],self.co["spectrumBorderMax"][hh]):
           if greaterZero >= self.co["findAddtionalPeaksThreshold"]:
             qual[tt,hh] = True
           if rawSpectrum.mask[tt,hh,ii] == True or rawSpectrum.data[tt,hh,ii] <= 0: 
@@ -507,13 +528,12 @@ class MrrZe:
     """
 
 
-    
-    
     noiseMask = np.all(spectrum.mask,axis=-1)
     newMask = deepcopy(noiseMask)
     #make it bigger to cover edges for 5x5 test, 2 pixel border
     maxs = np.ma.masked_all((self.no_t+4,self.no_h+1))
-    maxs[2:-2,2:-2] = np.ma.masked_array(np.ma.argmax(spectrum,axis=-1),noiseMask)[:,2:30]
+    #Mathieu : 30 changed for 125 
+    maxs[2:-2,2:-2] = np.ma.masked_array(np.ma.argmax(spectrum,axis=-1),noiseMask)[:,2:125]
     
     highLimit =11
     lowLimit = 9
@@ -526,7 +546,7 @@ class MrrZe:
     for t in np.arange(self.no_t):
       #is it real signal? only if at least 11 of 25 neigbours have signal as well!
       #for h in np.arange(4,28):
-      for h in np.arange(2,30):
+      for h in np.arange(2,126):
         if  noiseMask[t,h] == False:
           tSM = t+2 # for subMaxs t needs to be 2 larger due to 2 pixel border! for h not neccesary, 2 pixel border at botztom already there
           subMaxs = maxs[tSM-2:tSM+3,h-2:h+3]
@@ -534,9 +554,10 @@ class MrrZe:
           subMaxsNormed = limitMaInidces(subMaxs + thisMaxsDiff,64)
           diffs = np.abs(subMaxsNormed - 32)
           
-          if t in [0,self.no_t-1] or h in [2,29]:
+          # Mathieu : 29 changed for 125 and 28 changed for 124 
+          if t in [0,self.no_t-1] or h in [2,125]:
             limit = lowestLimit
-          elif t in [1,self.no_t-2] or h in [3,28]:
+          elif t in [1,self.no_t-2] or h in [3,124]:
             limit = lowLimit 
           else:
             limit = highLimit
@@ -603,7 +624,7 @@ class MrrZe:
     peakMask[tooThinn] = True
     quality["peakTooThinn"] = tooThinn * (np.sum(~peakMask,axis=-1)!=0)
     
-    if self.co["debug"] > 0: print "runtime", time.time()-t,"s"
+    if self.co["debug"] > 0: print( "runtime", time.time()-t,"s")
     return np.reshape(peakMask,np.shape(spectrum)), quality["peakTooThinn"],quality["veryWidePeakeUsedSecondPeakAlgorithm"]   #spectrum
 
   #get the border indices belonging to the hildebrand limit
@@ -762,7 +783,7 @@ class MrrZe:
     returns updated specMask and quality information
     '''
     quality = np.zeros(self._shape2D,dtype=bool)
-    for h in xrange(1,self.co["noH"]):
+    for h in range(1,self.co["noH"]):
       #the ones with peaks at both sides around 0 m/s!
       peaksAroundZero = (specMask[:,h-1,self.co["spectrumBorderMax"][h-1]-1] == False) * (specMask[:,h,self.co["spectrumBorderMin"][h]] == False)
       specMask[:,h,0:self.co["spectrumBorderMin"][h]][peaksAroundZero] = False
@@ -1062,7 +1083,7 @@ class MrrZe:
         #if we managed to mask all peaks, we have no choice but taking all
         if np.all(diffs.mask==True):
           diffs.mask[:] = False
-          if self.co["debug"]>4 : print "managed to mask all peaks at "+ str(t) +" while trying to find most trustfull one during dealiasing."
+          if self.co["debug"]>4 : print( "managed to mask all peaks at "+ str(t) +" while trying to find most trustfull one during dealiasing.")
           
         #the minimum velocity difference tells wehther dealiasing goes up, down or is not applied  
         UpOrDn = np.ma.argmin(np.ma.min(diffs,axis=1))
@@ -1103,7 +1124,7 @@ class MrrZe:
         
         formerPeakVel = trustedPeakVel[t]
         #loop through all peaks, starting at the trusted one
-        for jj in range(trustedPeakNo[t]-1,-1,-1)+range(trustedPeakNo[t]+1,len(allPeaks[t])):
+        for jj in list(range(trustedPeakNo[t]-1,-1,-1))+list(range(trustedPeakNo[t]+1,len(allPeaks[t]))):
           #To combine ascending and descending loop in one:
           if jj == trustedPeakNo[t]+1: formerPeakVel = trustedPeakVel[t]
           #go up, stay or down? for which option fifference to former (trusted) peaks is smallest.
@@ -1132,7 +1153,7 @@ class MrrZe:
             formerPeakVel = thisPeakVel
           #if there is already a peak in the height, repeat the process, but take the second likely height/velocity
           else:
-            if self.co["debug"]>4: print 'DA: there is already a peak in found height, take second choice', t,jj,thisPeakHeight,trustedPeakNo[t],trustedPeakHeight
+            if self.co["debug"]>4: print( 'DA: there is already a peak in found height, take second choice', t,jj,thisPeakHeight,trustedPeakNo[t],trustedPeakHeight)
             #otherwise take second choice!
             formerPeakVelList = np.array([formerPeakVel]*3)
             formerPeakVelList[UpOrDn] = 1e10 #make extremely big
@@ -1203,7 +1224,7 @@ class MrrZe:
       #avoid that something is folded into the highest range gate
       updatedSpectrumMask[tt,0,:2*self.co["widthSpectrum"]] = True
       self.qual["DAdirectionCorrectedByCoherenceTest"][tt,:] = True
-    if self.co["debug"] > 4: print 'coherenceTest corrected dealiasing upwards:', foldUp
+    if self.co["debug"] > 4: print( 'coherenceTest corrected dealiasing upwards:', foldUp)
 
     newSpectrum = np.ma.masked_array(newSpectrum.data,updatedSpectrumMask)
 
@@ -1240,7 +1261,7 @@ class MrrZe:
       #avoid that something is folded into the lowest range gate
       updatedSpectrumMask[tt,-1,-2*self.co["widthSpectrum"]:] = True
       self.qual["DAdirectionCorrectedByCoherenceTest"][tt,:] = True
-    if self.co["debug"] > 4: print 'coherenceTest corrected dealiasing Donwards:', foldDn
+    if self.co["debug"] > 4: print( 'coherenceTest corrected dealiasing Donwards:', foldDn)
 
     newSpectrum = np.ma.masked_array(newSpectrum.data,updatedSpectrumMask)
     
@@ -1260,12 +1281,11 @@ class MrrZe:
       self.qual["DAbigVelocityJumpDespiteCoherenceTest"][crazyVelDiff-self.co["dealiaseSpectrum_makeCoherenceTest_maskRadius"]:crazyVelDiff+self.co["dealiaseSpectrum_makeCoherenceTest_maskRadius"]+1,:] = True  
       
     return newSpectrum
-    
+
   def _calcEtaZeW(self,rawSpectra,heights,velocities,noise,noise_std):
     '''
     calculate the spectral moements and other spectral variables
     '''
-
     deltaH = oneD2twoD(heights[...,15]-heights[...,14], heights.shape[-1], 1)
     
     #transponieren um multiplizieren zu ermoeglichen!
@@ -1276,6 +1296,7 @@ class MrrZe:
 
     #calculate Ze
     Ze  = 1e18*(self.co["lamb"]**4*np.ma.sum(eta,axis=-1)/(np.pi**5*self.co["K2"]))
+
     Ze = (10*np.ma.log10(Ze)).filled(-9999)
     #Znoise  = 1e18*(self.co["lamb"]**4*(etaNoise*self.co["widthSpectrum"])/(np.pi**5*self.co["K2"]))
     #Znoise = 10*np.ma.log10(Znoise).filled(-9999)
@@ -1316,8 +1337,8 @@ class MrrZe:
     etaSpectraFlat = eta.reshape((eta.shape[0]*eta.shape[1],eta.shape[2]))
     
     #no get the according values
-    peakEtaLeftBorder =  10*np.log10(etaSpectraFlat[xrange(etaSpectraFlat.shape[0]),peakArgLeftBorder.ravel()].reshape(self._shape2D))
-    peakEtaRightBorder =     10*np.log10(etaSpectraFlat[xrange(etaSpectraFlat.shape[0]),peakArgRightBorder.ravel()].reshape(self._shape2D))
+    peakEtaLeftBorder =  10*np.log10(etaSpectraFlat[range(etaSpectraFlat.shape[0]),peakArgLeftBorder.ravel()].reshape(self._shape2D))
+    peakEtaRightBorder =     10*np.log10(etaSpectraFlat[range(etaSpectraFlat.shape[0]),peakArgRightBorder.ravel()].reshape(self._shape2D))
     
     peakEtaMax = 10*np.log10(np.max(eta.filled(-9999),axis=-1))
     
@@ -1333,7 +1354,8 @@ class MrrZe:
     
     return eta, Ze, W, etaNoiseAve, etaNoiseStd, specWidth, skewness, kurtosis, peakVelLeftBorder, peakVelRightBorder, leftSlope, rightSlope
 
-    
+ 
+
   def getQualityBinArray(self,qual):
     '''
     convert the bool quality masks to one binary array
@@ -1744,7 +1766,7 @@ class mrrProcessedData:
             listOfData_append(mrrDataEsc(string[k:k+i_offset],floatInt))
       except:
         #try to fix MRR bug
-        print "repairing data at " + str(unix2date(debugTime))
+        print( "repairing data at " + str(unix2date(debugTime)))
         string = string.replace("10000.0","10000.")
         string = string.replace("1000.00","1000.0")
         string = string.replace("100.000","100.00")
@@ -1756,7 +1778,7 @@ class mrrProcessedData:
           try:
             listOfData_append(mrrDataEsc(string[k:k+i_offset],floatInt))
           except:
-            print("######### Warning, Corrupt data at "+ str(unix2date(debugTime))+ ", position "+str(k)+": " + string+" #########")
+            #print("######### Warning, Corrupt data at "+ str(unix2date(debugTime))+ ", position "+str(k)+": " + string+" #########")
             listOfData_append(np.nan)
       return np.array(listOfData)
     
@@ -1785,30 +1807,30 @@ class mrrProcessedData:
     
     #go through all files
     for f,file in enumerate(files):
-      if verbosity > 1: print "%s of %s:"%(f+1,len(files)), file
+      if verbosity > 1: print( "%s of %s:"%(f+1,len(files)), file)
       
       #open file, gzip or ascii
       try:
         if file[-3:]==".gz":
           try: allData = gzip.open(file, 'rb')
           except: 
-            print "could not open:", file
+            print( "could not open:", file)
             raise IOError("could not open:"+ file)
         else:
           try: allData = open(file, 'r')
           except: 
-            print "could not open:", file
+            print( "could not open:", file)
             raise IOError("could not open:"+ file)
       
         if len(allData.read(10))==0:
-          print file, "empty!"
+          print( file, "empty!")
           allData.close()
           raise IOError("File empty")
         else:
           allData.seek(0)
           i=0
       except IOError:
-        print "skipping...", file
+        print( "skipping...", file)
         continue
       
       foundAtLeastOneFile = True
@@ -1839,7 +1861,7 @@ class mrrProcessedData:
       
       try:
         del dataMRR[0]
-        print "Warning: some lines without timestamp"
+        print( "Warning: some lines without timestamp")
       except:
         pass
 
@@ -1879,7 +1901,8 @@ class mrrProcessedData:
             try:
               specBin = int(dataLine[1:3])
             except:
-              print("######### Warning, Corrupt data header at "+ str(unix2date(timestamp))+ ", " + dataLine+" #########")
+              #Mathieu : Warning commented because Mrr Pro header doesn't fit with the one expected
+              #print("######### Warning, Corrupt data header at "+ str(unix2date(timestamp))+ ", " + dataLine+" #########")
               continue
             aveF[t,:,specBin] = splitMrrAveData(dataLine,timestamp,float)
             continue
@@ -1887,7 +1910,7 @@ class mrrProcessedData:
             try:
               specBin = int(dataLine[1:3])
             except:
-              print("######### Warning, Corrupt data header at "+ str(unix2date(timestamp))+ ", " + dataLine+" #########")
+              #print("######### Warning, Corrupt data header at "+ str(unix2date(timestamp))+ ", " + dataLine+" #########")
               continue
             aveD[t,:,specBin] = splitMrrAveData(dataLine,timestamp,float)
             continue
@@ -1895,7 +1918,7 @@ class mrrProcessedData:
             try:
               specBin = int(dataLine[1:3])
             except:
-              print("######### Warning, Corrupt data header at "+ str(unix2date(timestamp))+ ", " + dataLine+" #########")
+              #print("######### Warning, Corrupt data header at "+ str(unix2date(timestamp))+ ", " + dataLine+" #########")
               continue
             aveN[t,:,specBin] = splitMrrAveData(dataLine,timestamp,float)
             continue
@@ -1923,7 +1946,7 @@ class mrrProcessedData:
           elif len(dataLine)==2:
             continue
           else:
-            print "? Line not recognized:", str(unix2date(timestamp)), dataLine, len(dataLine)
+            print( "? Line not recognized:", str(unix2date(timestamp)), dataLine, len(dataLine))
       
       #join arrays of different files
       try:
@@ -1959,7 +1982,7 @@ class mrrProcessedData:
       raise UnboundLocalError
     try: self.header
     except:
-      print "did not find any MRR data in file!"
+      print( "did not find any MRR data in file!")
       raise IOError("did not find any MRR data in file!")
     del aveTimestamps,aveH,aveTF,aveF,aveN,aveD,aveK,avePIA,aveCapitalZ,aveSmallz,aveRR,aveLWC,aveW
     
@@ -1981,7 +2004,7 @@ class mrrProcessedData:
     self.shape2D = np.shape(self.mrrH)
     self.shape3D = np.shape(self.mrrF)
 
-    if verbosity > 0: print "done reading"
+    if verbosity > 0: print( "done reading")
   #end def __init__
 
   def writeNetCDF(self,fileOut,author="IMProToo",description="MRR Averaged or Processed Data",ncForm="NETCDF3_CLASSIC"):
@@ -2012,8 +2035,8 @@ class mrrProcessedData:
     cdfFile.mrrHeader = self.header
     cdfFile.description = description
     
-    #Dimensions
-    cdfFile.createDimension('MRR rangegate',31)
+    #Dimensions # Mathieu 31 ->127
+    cdfFile.createDimension('MRR rangegate',127)
     cdfFile.createDimension('time', None) #allows Multifile read
     cdfFile.createDimension('MRR spectralclass', 64)
 
@@ -2187,17 +2210,23 @@ class mrrRawData:
       @parameter startI (int) first data index, old file format 6, new 3
       @retrun array with mrr data
       '''
+      # Mathieu : Format different for mrr pro
 
-      instData = list()
-      instData_append = instData.append
+      # instData = list()
+      # instData_append = instData.append
       
-      for k in np.arange(startI,9*32,9):
-        try:
-          instData_append(rawEsc(string[k:k+9],floatInt))
-        except:
-          print("######### Warning, Corrupt data at "+ str(unix2date(debugTime))+ ", " + str(timestamp) + ", position "+str(k)+": " + string+" #########")
-          instData_append(np.nan)
+      # for k in np.arange(startI,7*32,7):
+      #   try:
+      #     instData_append(rawEsc(string[k:k+9],floatInt))
+      #   except:
+      #     #print("######### Warning, Corrupt data at "+ str(unix2date(debugTime))+ ", " + str(timestamp) + ", position "+str(k)+": " + string+" #########")
+      #     instData_append(np.nan)
+      # return np.array(instData)
+
+      instData = string.split(';')[1:]
+
       return np.array(instData)
+
 
     if type(fname) == list:
       files = fname
@@ -2210,29 +2239,29 @@ class mrrRawData:
     
     #go thorugh all files
     for f,file in enumerate(files):
-      print "%s of %s:"%(f+1,len(files)), file
+      print( "%s of %s:"%(f+1,len(files)), file)
       #open file gz or ascii
       try:
         if file[-3:]==".gz":
           try: allData = gzip.open(file, 'rb')
           except: 
-            print "could not open:", file
+            print( "could not open:", file)
             raise IOError("could not open:"+ file)
         else:
           try: allData = open(file, 'r')
           except: 
-            print "could not open:", file
+            print( "could not open:", file)
             raise IOError("could not open:"+ file)
       
         if len(allData.read(10))==0:
-          print file, "empty!"
+          print( file, "empty!")
           allData.close()
           raise IOError("File empty")
         else:
           allData.seek(0)
           i=0
       except IOError:
-        print "skipping..."
+        print( "skipping...")
         continue
       
       foundAtLeastOneFile = True
@@ -2253,8 +2282,10 @@ class mrrRawData:
           if line[0:2] == "T:":
             asciiDate = line[2:14] #old mrr raw data
             fileFormat = "old" #if there
-          elif line[0:4] == "MRR ":
+          elif line[0:4] == "MRR;": # Mathieu : ';' added
             asciiDate = line[4:16] #new mrr raw spectra
+            #Mathieu : number of range gate
+            n_rangegates = int( line.split(';')[9][4:] ) 
           else:
             raise IOError("must be either new or old file format!")
           # Script wants UTC!
@@ -2285,13 +2316,20 @@ class mrrRawData:
         debugLimit = len(dataMRR.keys())
         
       specLength = debugLimit - debugStart
-      
       #create arrays for data
-      rawSpectra = np.ones((specLength,32,64),dtype=int)*np.nan
-      rawTimestamps = np.array(np.sort(dataMRR.keys())[debugStart:debugLimit],dtype=int)
-      rawHeights = np.ones((specLength,32),dtype=int)*np.nan
-      rawTFs =  np.ones((specLength,32),dtype=float)*np.nan
+
+      #rawSpectra = np.ones((specLength,32,64),dtype=int)*np.nan
+        #Mathieu : 32 -> n_rangegates
+      rawSpectra = np.ones((specLength,n_rangegates,64),dtype=int)*np.nan
+      rawTimestamps = np.array(np.sort(list(dataMRR.keys()))[debugStart:debugLimit],dtype=int)
+      #mathieu
+      #rawHeights = np.ones((specLength,32),dtype=int)*np.nan
+      #rawTFs =  np.ones((specLength,32),dtype=float)*np.nan
+      rawHeights = np.ones((specLength,n_rangegates),dtype=int)*np.nan
+      rawTFs =  np.ones((specLength,n_rangegates),dtype=float)*np.nan
       rawNoSpec =  np.zeros(specLength,dtype=int)
+
+
 
       # default value - if the whole file is processed without ever setting mrrRawCC, this
       # means the file is not usable for Ze calculations, but there is no workaround there.
@@ -2308,6 +2346,7 @@ class mrrRawData:
             # is used if available.
             if t in [0,1]:
               self.header = dataLine
+
             headerLineCC, headerLineNumSpectra = self.parseHeaderLine(dataLine, fileFormat)
             if headerLineCC is not None:
               self.mrrRawCC = headerLineCC
@@ -2317,8 +2356,8 @@ class mrrRawData:
               # if fileFormat is "old", then the default value must always be taken;
               # otherwise, use the value from the headerLine, if present, otherwise
               # print a warning, since that means the headerLine had a problem.
-              if fileFormat == "new":
-                warnings.warn('Warning, could not read number of Spectra, taking default instead: '+self.defaultSpecPer10Sec)
+              # if fileFormat == "new":
+              #   warnings.warn('Warning, could not read number of Spectra, taking default instead: ')
               rawNoSpec[t] = self.defaultSpecPer10Sec
             continue #print timestamp
           elif dataLine[0:3] == "M:h" or dataLine[0] == "H":
@@ -2332,21 +2371,22 @@ class mrrRawData:
               if fileFormat == "old":
                 specBin = int(dataLine[3:5])
               else: 
-                specBin = int(dataLine[1:3])     
+                # Mathieu : 3->4 
+                specBin = int(dataLine[1:4])     
             except:
-              warnings.warn("######### Warning, Corrupt data header at "+ str(unix2date(timestamp))+ ", " + str(timestamp) + ", "+ dataLine+" #########")
+              #warnings.warn("######### Warning, Corrupt data header at "+ str(unix2date(timestamp))+ ", " + str(timestamp) + ", "+ dataLine+" #########")
               continue
             rawSpectra[t,:,specBin] = splitMrrRawData(dataLine,timestamp,int,startIndex)
             continue
           elif (dataLine[0:2] == "C:") or (dataLine[0:2] == "R:"):
             continue
           else:
-            warnings.warn("? Line not recognized:"+ dataLine)
+            continue
+            #warnings.warn("? Line not recognized:"+ dataLine)
             
       #end for t,timestamp
       
       #discard spectra which are only partly valid!
-      
       rawSpectra[np.any(np.isnan(rawSpectra),axis=2)] = np.nan
       rawSpectra[np.any(np.isnan(rawTFs),axis=1)] = np.nan
       rawSpectra[np.any(np.isnan(rawHeights),axis=1)] = np.nan
@@ -2373,7 +2413,7 @@ class mrrRawData:
       raise UnboundLocalError("No files found: "+ fname)
     try: self.header
     except:
-      print "did not find any MRR data in file!"
+      print( "did not find any MRR data in file!")
       raise IOError("did not find any MRR data in file!")
     del rawHeights, rawTimestamps, rawTFs, rawSpectra
     
@@ -2383,6 +2423,8 @@ class mrrRawData:
       self.mrrRawTF = np.ma.masked_array(self.mrrRawTF,np.isnan(self.mrrRawTF))
       self.mrrRawSpectrum = np.ma.masked_array(self.mrrRawSpectrum,np.isnan(self.mrrRawSpectrum))
     
+
+
     self.shape2D = np.shape(self.mrrRawHeight)
     self.shape3D = np.shape(self.mrrRawSpectrum)
 
@@ -2396,7 +2438,13 @@ class mrrRawData:
     Prints a warning if unsuccessful.
     '''
 
-    tokens = headerLine.split()
+    tokens0 = headerLine.split(';')
+    #Mathieu : Mrrpro output 
+    tokens = list()
+    for it_tokens in range(len(tokens0)):
+        correct_header = tokens0[it_tokens].split()
+        for it_correct_header in range(len(correct_header)):
+            tokens.append(correct_header[it_correct_header])
 
     CC = None
     numSpectra = None
@@ -2411,27 +2459,28 @@ class mrrRawData:
       except:
         warnings.warn('Warning, could not read CC in: ' + headerLine)
 
-    if fileFormat == "new":
-      if tokens[2] != "UTC":
-        raise IOError("ERROR, time must be UTC!")
-      if tokens[-1] != "RAW":
-        raise IOError("Was expecting MRR RAW DATA, found: "+tokens[-1])
-      try:
-        idx = tokens.index('MDQ')
-      except:
-        warnings.warn('Warning, could not find Keyword MDQ in :'+headerLine)
-      else:
-        try:
-          numSpectra = int(tokens[idx+2])
-        except:
-          warnings.warn('Warning, could not read number of Spectra: in ' + headerLine)
+    # if fileFormat == "new":
+    #   if tokens[2] != "UTC":
+    #     raise IOError("ERROR, time must be UTC!")
+      # if tokens[-1] != "RAW":
+      #   raise IOError("Was expecting MRR RAW DATA, found: "+tokens[-1])
+      # try:
+      #   idx = tokens.index('MDQ')
+      # except:
+      #   #warnings.warn('Warning, could not find Keyword MDQ in :'+headerLine)
+              
+      # else:
+      #   try:
+      #     numSpectra = int(tokens[idx+2])
+      #   except:
+      #     #warnings.warn('Warning, could not read number of Spectra: in ' + headerLine)
+          
+    # elif fileFormat == "old":
+    #   if tokens[1] != "UTC":
+    #     raise IOError("ERROR, time must be UTC!")
 
-    elif fileFormat == "old":
-      if tokens[1] != "UTC":
-        raise IOError("ERROR, time must be UTC!")
-
-    else:
-      raise IOError("must be either new or old file format!")
+    # else:
+    #   raise IOError("must be either new or old file format!")
 
 
     return CC, numSpectra
@@ -2465,7 +2514,9 @@ class mrrRawData:
     if pyNc: fillVDict["fill_value"] = self.missingNumber
     
     #Dimensions
-    cdfFile.createDimension('MRR rangegate',32)
+    n_rangegates = np.shape(self.mrrRawSpectrum)[1]
+
+    cdfFile.createDimension('MRR rangegate',n_rangegates)
     cdfFile.createDimension('time', None) #allows Multifile read
     cdfFile.createDimension('MRR spectralclass', 64)
     
