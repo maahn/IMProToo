@@ -217,6 +217,7 @@ class MrrZe:
 
         self.header = rawData.header
         self.time = rawData.mrrRawTime
+        self.timezone = rawData.timezone
         self.H = rawData.mrrRawHeight[:, self.co["minH"]:self.co["maxH"]+1]
         self.TF = rawData.mrrRawTF[:, self.co["minH"]:self.co["maxH"]+1]
         self.rawSpectrum = rawData.mrrRawSpectrum[
@@ -1613,7 +1614,8 @@ class MrrZe:
 
         nc_time = cdfFile.createVariable('time', 'i', ('time',), **fillVDict)
         nc_time.description = "measurement time. Following Meteks convention, the dataset at e.g. 11:55 contains all recorded raw between 11:54:00 and 11:54:59 (if delta t = 60s)!"
-        nc_time.units = 'seconds since 1970-01-01'
+        nc_time.timezone = self.timezone
+        nc_time.units = 'seconds since 1970-01-01 00:00:00'
         nc_time[:] = np.array(self.time.filled(self.missingNumber), dtype="i4")
         # commented because of Ubuntu bug: https://bugs.launchpad.net/ubuntu/+source/python-scientific/+bug/1005571
         #if not pyNc: nc_time._FillValue =int(self.missingNumber)
@@ -2032,7 +2034,7 @@ class mrrProcessedData:
                     asciiDate = line[4:20]
                     # We must have UTC!
                     if (re.search("UTC", line) == None):
-                        sys.exit("Warning, must be UTC!")
+                        sys.exit("Warning, line must start with UTC!")
                     date = datetime.datetime(year=2000+int(asciiDate[0:2]), month=int(asciiDate[2:4]), day=int(
                         asciiDate[4:6]), hour=int(asciiDate[6:8]), minute=int(asciiDate[8:10]), second=int(asciiDate[10:12]))
                     date = int(date2unix(date))
@@ -2260,7 +2262,7 @@ class mrrProcessedData:
         nc_classes = cdfFile.createVariable(
             'MRR spectralclass', 'i', ('MRR spectralclass',))
 
-        nc_times.units = 'UNIX Time Stamp'
+        nc_times.units = 'seconds since 1970-01-01 00:00:00'
         nc_ranges.units = 'm'
         nc_classes.units = 'none'
 
@@ -2386,6 +2388,7 @@ class mrrRawData:
 
         # only provided in newer Firmware, has to be guessed for older ones
         self.defaultSpecPer10Sec = 58
+        self.timezone = None
 
         # If this is a single filename input, and it is a netCDF
         # (extension is nc or cdf), then read it directly and return.
@@ -2565,7 +2568,7 @@ class mrrRawData:
                         # is used if available.
                         if t in [0, 1]:
                             self.header = dataLine
-                        headerLineCC, headerLineNumSpectra = self.parseHeaderLine(
+                        headerLineCC, headerLineNumSpectra, timezone = self.parseHeaderLine(
                             dataLine, fileFormat)
                         if headerLineCC is not None:
                             self.mrrRawCC = headerLineCC
@@ -2579,6 +2582,11 @@ class mrrRawData:
                                 warnings.warn(
                                     'Warning, could not read number of Spectra, taking default instead: '+self.defaultSpecPer10Sec)
                             rawNoSpec[t] = self.defaultSpecPer10Sec
+                        if self.timezone is  None:
+                            self.timezone = timezone
+                        else:
+                            assert self.timezone == timezone
+
                         continue  # print timestamp
                     elif dataLine[0:3] == "M:h" or dataLine[0] == "H":
                         rawHeights[t, :] = splitMrrRawData(
@@ -2684,8 +2692,9 @@ class mrrRawData:
                 warnings.warn('Warning, could not read CC in: ' + headerLine)
 
         if fileFormat == "new":
-            if tokens[2] != "UTC":
-                raise IOError("ERROR, time must be UTC!")
+            if not tokens[2].startswith("UTC"):
+                raise IOError("ERROR, timestring must start with UTC!")
+            timezone = tokens[2]
             if tokens[-1] != "RAW":
                 raise IOError("Was expecting MRR RAW DATA, found: "+tokens[-1])
             try:
@@ -2703,11 +2712,12 @@ class mrrRawData:
         elif fileFormat == "old":
             if tokens[1] != "UTC":
                 raise IOError("ERROR, time must be UTC!")
+            timezone = tokens[1]
 
         else:
             raise IOError("must be either new or old file format!")
 
-        return CC, numSpectra
+        return CC, numSpectra, timezone
 
     def writeNetCDF(self, fileOut, author="IMProToo", description="MRR Raw Data", ncForm='NETCDF3_CLASSIC'):
         '''
@@ -2751,7 +2761,8 @@ class mrrRawData:
         nc_classes = cdfFile.createVariable(
             'MRR spectralclass', 'i', ('MRR spectralclass',), **fillVDict)
 
-        nc_times.units = 'UNIX Time Stamp'
+        nc_times.units = 'seconds since 1970-01-01 00:00:00'
+        nc_times.timezone =self.timezone
         nc_ranges.units = 'm'
         nc_classes.units = 'none'
 
