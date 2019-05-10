@@ -238,7 +238,7 @@ class MrrZe:
 
     def averageSpectra(self, averagingTime):
         """
-        average Spectras and other data. If averaging time is e.g. 60, the
+        average spectra and other data. If averaging time is e.g. 60, the
         data with the timestamp 14:00 contains all measurements from 13:59:00
         to 13:59:59 (like MRR standard software)
         """
@@ -255,7 +255,7 @@ class MrrZe:
         # find last minute
         endSeconds = unix2date(rawTimestamps[-1]).second
         end = rawTimestamps[-1] + 60 - endSeconds
-        # make new timevector and
+        # make new time vector and
         rawTimestampsAve = np.ma.arange(
             start, end+averagingTime, averagingTime, dtype="int")
 
@@ -280,7 +280,7 @@ class MrrZe:
             # boolean array containing the wanted entries
             booleanTimes = (rawTimestamps < timestamp) * \
                 (rawTimestamps >= timestamp-averagingTime)
-            aveLength = len(booleanTimes[booleanTimes is True])
+            aveLength = np.sum(booleanTimes)
             # proceed only if entries were found
             if aveLength != 0:
                 # and if TF and heights are NOT changing and if heights are
