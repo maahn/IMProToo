@@ -41,7 +41,7 @@ import os
 
 from .tools import unix2date, date2unix, limitMaInidces, quantile
 from .tools import oneD2twoD, _get_netCDF_module
-__version__ = "0.102"
+__version__ = "0.103"
 
 
 class MrrZe:

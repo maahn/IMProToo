@@ -10,9 +10,15 @@ The software can be used under the GPL license
 
 ## What's new?
 
-Various bug fixes in 1.102, see https://github.com/maahn/IMProToo/issues/6 and https://github.com/maahn/IMProToo/issues/5
+### 0.103
+* Non-UTC time stamps permitted 
+* Fixed bug caused by numpy update
 
-From version 0.101 on, an installation routine is provided (See below). To avoid conflicts, please remove earlier versions manually before installing a newer version.
+### 0.102
+* Various bug fixes, see https://github.com/maahn/IMProToo/issues/6 and https://github.com/maahn/IMProToo/issues/5
+
+### 0.101
+* An installation routine is provided (See below). To avoid conflicts, please remove earlier versions manually before installing a newer version.
 
 ## How does it work 
 
