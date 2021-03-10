@@ -85,7 +85,7 @@ class MrrZe:
             self.co["nyqVmin"],
             self.co["nyqVmax"]+0.0001,
             self.co["nyqVdelta"]
-              )
+        )
         # spectral resolution
         self.co["widthSpectrum"] = 64
         # min height to be processed
@@ -225,8 +225,8 @@ class MrrZe:
         self.H = rawData.mrrRawHeight[:, self.co["minH"]:self.co["maxH"]+1]
         self.TF = rawData.mrrRawTF[:, self.co["minH"]:self.co["maxH"]+1]
         self.rawSpectrum = rawData.mrrRawSpectrum[
-                        :, self.co["minH"]:self.co["maxH"]+1
-                        ]
+            :, self.co["minH"]:self.co["maxH"]+1
+        ]
         self.noSpecPerTimestep = rawData.mrrRawNoSpec
 
         self.no_h = np.shape(self.H)[1]
@@ -474,7 +474,7 @@ class MrrZe:
                 ix[self._specBorderMask3D.ravel()],
                 ix[~self._specBorderMask3D.ravel()],
                 self.rawSpectrum[~self._specBorderMask3D]
-                )
+            )
 
             self.rawSpectrum = np.ma.masked_array(
                 intSpectrum, self.rawSpectrum.mask)
@@ -816,7 +816,7 @@ class MrrZe:
 
         # iterate through spectras:
         for k in np.arange(iMax.shape[0]):
-                # the rolling allow recognition also if 0 m s^-1 is crossed
+            # the rolling allow recognition also if 0 m s^-1 is crossed
             rolledSpectrum = np.roll(dataFlat[k], -iMax[k])
             rolledMask = np.roll(maskDescAve[k], -iMax[k])
             meanRightOld = np.ma.mean(
@@ -887,8 +887,7 @@ class MrrZe:
                 self.rawSpectrum.data[:, h-1, self.co["spectrumBorderMax"][h-1]:] > self.specNoise3D[:, h-1, self.co["spectrumBorderMax"][h-1]:]).T).T
             specMask[:, h, 0:self.co["spectrumBorderMin"]
                      [h]][peaksAroundZeroHalfToRightBMin] = False
-            specMask[:, h-1, self.co["spectrumBorderMax"][h-1]
-                :][peaksAroundZeroHalfToRightBMax] = False
+            specMask[:, h-1, self.co["spectrumBorderMax"][h-1]                     :][peaksAroundZeroHalfToRightBMax] = False
 
             quality[:, h] = quality[:, h-1] = peaksAroundZero + \
                 peaksAroundZeroHalfToLeft + peaksAroundZeroHalfToRight
@@ -1198,7 +1197,8 @@ class MrrZe:
                 if np.all(diffs.mask == True):
                     diffs.mask[:] = False
                     if self.co["debug"] > 4:
-                        print("managed to mask all peaks at " + str(t) + " while trying to find most trustfull one during dealiasing.")
+                        print("managed to mask all peaks at " + str(t) +
+                              " while trying to find most trustfull one during dealiasing.")
 
                 # the minimum velocity difference tells wehther dealiasing goes up, down or is not applied
                 UpOrDn = np.ma.argmin(np.ma.min(diffs, axis=1))
@@ -1275,13 +1275,13 @@ class MrrZe:
                             self.qual["severeProblemsDuringDA"][t] = True
                             continue
                         # only if there is no peak yet!!
-                        extendedRawSpectrum[t, thisPeakHeight, thisPeakHeightIndices[0]
-                            :thisPeakHeightIndices[-1]+1].mask = False
+                        extendedRawSpectrum[t, thisPeakHeight, thisPeakHeightIndices[0]                                            :thisPeakHeightIndices[-1]+1].mask = False
                         formerPeakVel = thisPeakVel
                     # if there is already a peak in the height, repeat the process, but take the second likely height/velocity
                     else:
                         if self.co["debug"] > 4:
-                            print('DA: there is already a peak in found height, take second choice', t, jj, thisPeakHeight, trustedPeakNo[t], trustedPeakHeight)
+                            print('DA: there is already a peak in found height, take second choice',
+                                  t, jj, thisPeakHeight, trustedPeakNo[t], trustedPeakHeight)
                         # otherwise take second choice!
                         formerPeakVelList = np.array([formerPeakVel]*3)
                         formerPeakVelList[UpOrDn] = 1e10  # make extremely big
@@ -1310,8 +1310,7 @@ class MrrZe:
                         # check again whether there is already a peak in the spectrum
                         if np.all(extendedRawSpectrum[t, thisPeakHeight].mask == True):
                             # next try
-                            extendedRawSpectrum[t, thisPeakHeight, thisPeakHeightIndices[0]
-                                :thisPeakHeightIndices[-1]+1].mask = False
+                            extendedRawSpectrum[t, thisPeakHeight, thisPeakHeightIndices[0]                                                :thisPeakHeightIndices[-1]+1].mask = False
                             formerPeakVel = thisPeakVel
                         # if yes, give up
                         else:
@@ -1426,8 +1425,7 @@ class MrrZe:
             self._shape2D, dtype=bool)
         # surrounding data has to be masked as well, take +- self.co["dealiaseSpectrum_makeCoherenceTest_maskRadius"] (default 20min) around suspicous data
         for crazyVelDiff in crazyVelDiffs:
-            self.qual["DAbigVelocityJumpDespiteCoherenceTest"][crazyVelDiff-self.co["dealiaseSpectrum_makeCoherenceTest_maskRadius"]
-                :crazyVelDiff+self.co["dealiaseSpectrum_makeCoherenceTest_maskRadius"]+1, :] = True
+            self.qual["DAbigVelocityJumpDespiteCoherenceTest"][crazyVelDiff-self.co["dealiaseSpectrum_makeCoherenceTest_maskRadius"]                                                               :crazyVelDiff+self.co["dealiaseSpectrum_makeCoherenceTest_maskRadius"]+1, :] = True
 
         return newSpectrum
 
@@ -1597,7 +1595,7 @@ class MrrZe:
         cdfFile.contact_person = self.co["ncCreator"]
         cdfFile.source = 'MRR-2'
         cdfFile.location = self.co["ncLocation"]
-        cdfFile.history = 'Created with IMProToo v'+ __version__
+        cdfFile.history = 'Created with IMProToo v' + __version__
         cdfFile.author = 'Max Maahn'
         cdfFile.processing_date = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
         cdfFile.reference = 'Maahn, M. and Kollias, P., 2012: Improved Micro Rain Radar snow measurements using Doppler spectra post-processing, Atmos. Meas. Tech., 5, 2661-2673, doi:10.5194/amt-5-2661-2012. '
@@ -2159,7 +2157,8 @@ class mrrProcessedData:
                     elif len(dataLine) == 2:
                         continue
                     else:
-                        print("? Line not recognized:", str(unix2date(timestamp)), dataLine, len(dataLine))
+                        print("? Line not recognized:", str(
+                            unix2date(timestamp)), dataLine, len(dataLine))
 
             # join arrays of different files
             try:
@@ -2256,7 +2255,7 @@ class mrrProcessedData:
 
         print("writing %s ..." % (fileOut))
         # Attributes
-        cdfFile.history = 'Created with IMProToo v'+ __version__
+        cdfFile.history = 'Created with IMProToo v' + __version__
         cdfFile.author = 'Max Maahn'
         cdfFile.processing_date = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
         cdfFile.reference = 'Maahn, M. and Kollias, P., 2012: Improved Micro Rain Radar snow measurements using Doppler spectra post-processing, Atmos. Meas. Tech., 5, 2661-2673, doi:10.5194/amt-5-2661-2012. '
@@ -2267,7 +2266,6 @@ class mrrProcessedData:
         cdfFile.source = 'MRR-2'
         cdfFile.location = location
         cdfFile.mrrHeader = self.header
-
 
         # Dimensions
         cdfFile.createDimension('MRR rangegate', 31)
@@ -2600,7 +2598,7 @@ class mrrRawData:
                                 warnings.warn(
                                     'Warning, could not read number of Spectra, taking default instead: '+self.defaultSpecPer10Sec)
                             rawNoSpec[t] = self.defaultSpecPer10Sec
-                        if self.timezone is  None:
+                        if self.timezone is None:
                             self.timezone = timezone
                         else:
                             assert self.timezone == timezone
@@ -2780,7 +2778,7 @@ class mrrRawData:
             'MRR spectralclass', 'i', ('MRR spectralclass',), **fillVDict)
 
         nc_times.units = 'seconds since 1970-01-01 00:00:00'
-        nc_times.timezone =self.timezone
+        nc_times.timezone = self.timezone
         nc_ranges.units = 'm'
         nc_classes.units = 'none'
 

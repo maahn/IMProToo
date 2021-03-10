@@ -23,22 +23,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from setuptools import setup
 
 if __name__ == "__main__":
-  setup(
-      name='IMProToo',
-      version='0.103',
-      packages=['IMProToo',],
-      license='GNU General Public License 3',
-      author="Maximilian Maahn",
-      author_email="mmaahn@meteo.uni-koeln.de",      
-      long_description=open('README.md').read(),
-      classifiers=[
-          "Development Status :: 4 - Beta",
-          "Topic :: Utilities",
-          "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
-          "Operating System :: OS Independent",
-          "Programming Language :: Python"
-          'Intended Audience :: Science/Research',
-          'Topic :: Scientific/Engineering',
-          ],
-      install_requires = ['numpy', 'matplotlib', 'netCDF4', 'scipy'],
-  )
+    setup(
+        name='IMProToo',
+        version='0.103',
+        packages=['IMProToo', ],
+        license='GNU General Public License 3',
+        author="Maximilian Maahn",
+        author_email="mmaahn@meteo.uni-koeln.de",
+        long_description=open('README.md').read(),
+        classifiers=[
+            "Development Status :: 4 - Beta",
+            "Topic :: Utilities",
+            "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+            "Operating System :: OS Independent",
+            "Programming Language :: Python"
+            'Intended Audience :: Science/Research',
+            'Topic :: Scientific/Engineering',
+        ],
+        install_requires=['numpy', 'matplotlib', 'netCDF4', 'scipy'],
+    )
