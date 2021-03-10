@@ -9,7 +9,16 @@ Please note that this software was developed for observations at low SNR ratios 
 The software can be used under the GPL license
 
 ## What's new?
-From version 0.101 on, an installation routine is provided (See below). To avoid conflicts, please remove earlier versions manually before installing a newer version.
+
+### 0.103
+* Non-UTC time stamps permitted 
+* Fixed bug caused by numpy update
+
+### 0.102
+* Various bug fixes, see https://github.com/maahn/IMProToo/issues/6 and https://github.com/maahn/IMProToo/issues/5
+
+### 0.101
+* An installation routine is provided (See below). To avoid conflicts, please remove earlier versions manually before installing a newer version.
 
 ## How does it work 
 
@@ -24,6 +33,7 @@ The software is developed for python 2.7 and should run on any recent Linux syst
 
 The following python packages are required:
   * numpy
+  * scipy
   * matplotlib (for plotting only)
   * netcdf4-python http://code.google.com/p/netcdf4-python/ OR python-netcdf (for saving the results only)
 
@@ -85,4 +95,4 @@ write all variables to a netCDF file.
 
 
 ## Questions
-In case of any questions, please don't hesitate to contact Maximilian Maahn: mmaahn_(AT)_meteo_DOT_uni-koeln_DOT_de
+In case of any questions, please don't hesitate to contact Maximilian Maahn: maximilian.maahn_(AT)_colorado_DOT_edu

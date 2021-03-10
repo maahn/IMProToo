@@ -3,12 +3,14 @@
 IMProToo
 Improved MRR Processing Tool
 
-Python toolkit to read write and process MRR Data. Raw Data, Average and Instantaneous
-Data are supported.
+Python toolkit to read write and process MRR Data. Raw Data, Average and
+Instantaneous Data are supported.
 
 This file includes some helper functions
 
-Copyright (C) 2011-2015 Maximilian Maahn, IGMK (mmaahn@meteo.uni-koeln.de)
+Copyright (C) 2011-2018 Maximilian Maahn, CU Boulder
+maximilian.maahn@colorado.edu
+https://github.com/maahn/IMProToo
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -39,209 +41,214 @@ import warnings
 #warnings.filterwarnings('always', '.*', UserWarning,)
 
 
-def getManualQualityArray(inputFile,timeVector):
-  '''
-  returns quality array for timevector using inputFile. See readQualityFile for details about inputFile.
-  '''
-  startTimes, endTimes, comments = readQualityFile(inputFile)
-  quality = np.zeros(timeVector.shape,dtype=bool)
-  for startTime, endTime in zip(startTimes,endTimes):
-    startTime = date2unix(startTime)
-    endTime = date2unix(endTime)
-    quality = quality + ((timeVector >=startTime)* (timeVector <endTime))
-  return quality
-  
+def getManualQualityArray(inputFile, timeVector):
+    '''
+    returns quality array for timevector using inputFile. See readQualityFile for details about inputFile.
+    '''
+    startTimes, endTimes, comments = readQualityFile(inputFile)
+    quality = np.zeros(timeVector.shape, dtype=bool)
+    for startTime, endTime in zip(startTimes, endTimes):
+        startTime = date2unix(startTime)
+        endTime = date2unix(endTime)
+        quality = quality + ((timeVector >= startTime)
+                             * (timeVector < endTime))
+    return quality
 
-  
+
 def readQualityFile(inputFile):
-  '''
-  reads manual quality control files, format is like ancient 'Hatpro" format:
-  
-  file format is:
-  date, no of entries for this day, starttime (00.00 - 23:59), endtime (00:01 - 24:00), comment
-  120105   3 11.00 17.00 snow on dish
-	      19.00 20.00 snow on dish
-	      22.00 24.00 interference
-  120106   1 00.00 21.00 snow on dish
-  #this is a comment
-  120107   1 00.00 24.00 maintenance
-  
-  '''
-  startTimes = list()
-  endTimes = list()
-  comments = list()
+    '''
+    reads manual quality control files, format is like ancient 'Hatpro" format:
 
-  belongsToOldDate = 1
-  ll = -1
+    file format is:
+    date, no of entries for this day, starttime (00.00 - 23:59), endtime (00:01 - 24:00), comment
+    120105   3 11.00 17.00 snow on dish
+                19.00 20.00 snow on dish
+                22.00 24.00 interference
+    120106   1 00.00 21.00 snow on dish
+    #this is a comment
+    120107   1 00.00 24.00 maintenance
 
-  f = open(inputFile,"r")
-  for line in f.readlines():
-    ll += 1  
-    fields = line.split()
-    try:
-      #check for comments
-      if fields[0][0:1] == '#':
-        print 'comment', ' '.join(fields)
-        continue
-      # does the line hav its own timestamp?
-      if belongsToOldDate == 1:
-	startDate = fields[0]
-	belongsToOldDate = int(fields[1])
-	startTime = fields[2]
-	endTime = fields[3]
-	comment = ' '.join(fields[4:])
-      else:
-	startTime = fields[0]
-	endTime = fields[1]   
-	comment = ' '.join(fields[2:])
-	belongsToOldDate -= 1
-      #yes, 24.00 is a weired timestamp, correct this to 00.00 next day
-      if endTime == '24.00':
-	#import pdb;pdb.set_trace()
-	endDate = datetime.datetime.strftime((datetime.datetime.strptime(startDate,'%y%m%d')+datetime.timedelta(1)),'%y%m%d')
-	endTime = '00.00'
-      else:
-	endDate = startDate
-      comment = ' '.join(fields[4:])
-      startTimes.append(datetime.datetime.strptime(startDate+' '+startTime,'%y%m%d %H.%M'))
-      endTimes.append(datetime.datetime.strptime(endDate+' '+endTime,'%y%m%d %H.%M'))
-      comments.append(comment)
-    except:
-      belongsToOldDate = 1
-      warnings.warn('Could not read line no. '+str(ll) + str(fields))
+    '''
+    startTimes = list()
+    endTimes = list()
+    comments = list()
 
-  f.close()
-  
-  return startTimes, endTimes, comments
+    belongsToOldDate = 1
+    ll = -1
 
-    
+    f = open(inputFile, "r")
+    for line in f.readlines():
+        ll += 1
+        fields = line.split()
+        try:
+            # check for comments
+            if fields[0][0:1] == '#':
+                print 'comment', ' '.join(fields)
+                continue
+            # does the line hav its own timestamp?
+            if belongsToOldDate == 1:
+                startDate = fields[0]
+                belongsToOldDate = int(fields[1])
+                startTime = fields[2]
+                endTime = fields[3]
+                comment = ' '.join(fields[4:])
+            else:
+                startTime = fields[0]
+                endTime = fields[1]
+                comment = ' '.join(fields[2:])
+                belongsToOldDate -= 1
+            # yes, 24.00 is a weired timestamp, correct this to 00.00 next day
+            if endTime == '24.00':
+                #import pdb;pdb.set_trace()
+                endDate = datetime.datetime.strftime((datetime.datetime.strptime(
+                    startDate, '%y%m%d')+datetime.timedelta(1)), '%y%m%d')
+                endTime = '00.00'
+            else:
+                endDate = startDate
+            comment = ' '.join(fields[4:])
+            startTimes.append(datetime.datetime.strptime(
+                startDate+' '+startTime, '%y%m%d %H.%M'))
+            endTimes.append(datetime.datetime.strptime(
+                endDate+' '+endTime, '%y%m%d %H.%M'))
+            comments.append(comment)
+        except:
+            belongsToOldDate = 1
+            warnings.warn('Could not read line no. '+str(ll) + str(fields))
+
+    f.close()
+
+    return startTimes, endTimes, comments
+
+
 def date2unix(date):
-  '''
-  converts datetime object to seconds since 01-01-1970
-  '''
-  return calendar.timegm(date.timetuple())
+    '''
+    converts datetime object to seconds since 01-01-1970
+    '''
+    return calendar.timegm(date.timetuple())
+
 
 def unix2date(unix):
-  '''
-  converts seconds since 01-01-1970 to datetime object
-  '''
-  
-  return datetime.datetime.utcfromtimestamp(unix)   
-  
-  
-def quantile(x, q,  qtype = 7, issorted = False):
-  """
-  Args:
-      x - input data
-      q - quantile
-      qtype - algorithm
-      issorted- True if x already sorted.
+    '''
+    converts seconds since 01-01-1970 to datetime object
+    '''
 
-  Compute quantiles from input array x given q.For median,
-  specify q=0.5.
+    return datetime.datetime.utcfromtimestamp(unix)
 
-  References:
-      http://reference.wolfram.com/mathematica/ref/Quantile.html
-      http://wiki.r-project.org/rwiki/doku.php?id=rdoc:stats:quantile
 
-  Author:
-      Ernesto P.Adorio Ph.D.
-      UP Extension Program in Pampanga, Clark Field.
-  """
-  if not issorted:
-      y = sorted(x)
-  else:
-      y = x
-  if not (1 <= qtype <= 9): 
-      return None  # error!
+def quantile(x, q,  qtype=7, issorted=False):
+    """
+    Args:
+        x - input data
+        q - quantile
+        qtype - algorithm
+        issorted- True if x already sorted.
 
-  # Parameters for the Hyndman and Fan algorithm
-  abcd = [(0,   0, 1, 0), # inverse empirical distrib.function., R type 1
-	  (0.5, 0, 1, 0), # similar to type 1, averaged, R type 2
-	  (0.5, 0, 0, 0), # nearest order statistic,(SAS) R type 3
+    Compute quantiles from input array x given q.For median,
+    specify q=0.5.
 
-	  (0,   0, 0, 1), # California linear interpolation, R type 4
-	  (0.5, 0, 0, 1), # hydrologists method, R type 5
-	  (0,   1, 0, 1), # mean-based estimate(Weibull method), (SPSS,Minitab), type 6 
-	  (1,  -1, 0, 1), # mode-based method,(S, S-Plus), R type 7
-	  (1.0/3, 1.0/3, 0, 1), # median-unbiased ,  R type 8
-	  (3/8.0, 0.25, 0, 1)   # normal-unbiased, R type 9.
-	  ]
+    References:
+        http://reference.wolfram.com/mathematica/ref/Quantile.html
+        http://wiki.r-project.org/rwiki/doku.php?id=rdoc:stats:quantile
 
-  a, b, c, d = abcd[qtype-1]
-  n = len(x)
-  g, j = np.modf( a + (n+b) * q -1)
-  if j < 0:
-      return y[0]
-  elif j >= n:           
-      return y[n-1]   # oct. 8, 2010 y[n]???!! uncaught  off by 1 error!!!
-
-  j = int(np.floor(j))
-  if g ==  0:
-      return y[j]
-  else:
-      return y[j] + (y[j+1]- y[j])* (c + d * g)    
-
-def oneD2twoD(vector,shape2,axis):
-  '''
-  helper function to convert 1D to 2D data
-  '''
-  if axis == 0:
-    matrix = np.zeros((shape2,len(vector)))
-    for h in np.arange(shape2):
-      matrix[h]= vector
-  elif axis == 1:
-    matrix = np.zeros((len(vector),shape2))
-    for h in np.arange(shape2):
-      matrix[:,h]= vector
-  else:
-    raise ValueError("wrong axis")
-  return matrix
-  
-def limitMaInidces(iArray,max):
-  '''
-  helper function to limit indices to certain interval
-  lower limit 0
-  max in python style -> actuallay max-1
-  
-  '''
-  reArray = np.ma.masked_all_like(iArray.ravel())
-  shape = iArray.shape
-  for n,i in enumerate(iArray.ravel()):
-    if i >= max:
-      reArray[n] = i - max
-    elif i < 0 :
-      reArray[n] = i + max
+    Author:
+        Ernesto P.Adorio Ph.D.
+        UP Extension Program in Pampanga, Clark Field.
+    """
+    if not issorted:
+        y = sorted(x)
     else:
-      reArray[n] = i
-  return reArray.reshape(shape)
+        y = x
+    if not (1 <= qtype <= 9):
+        return None  # error!
 
-   
+    # Parameters for the Hyndman and Fan algorithm
+    abcd = [(0,   0, 1, 0),  # inverse empirical distrib.function., R type 1
+            (0.5, 0, 1, 0),  # similar to type 1, averaged, R type 2
+            (0.5, 0, 0, 0),  # nearest order statistic,(SAS) R type 3
+
+            (0,   0, 0, 1),  # California linear interpolation, R type 4
+            (0.5, 0, 0, 1),  # hydrologists method, R type 5
+            # mean-based estimate(Weibull method), (SPSS,Minitab), type 6
+            (0,   1, 0, 1),
+            (1,  -1, 0, 1),  # mode-based method,(S, S-Plus), R type 7
+            (1.0/3, 1.0/3, 0, 1),  # median-unbiased ,  R type 8
+            (3/8.0, 0.25, 0, 1)   # normal-unbiased, R type 9.
+            ]
+
+    a, b, c, d = abcd[qtype-1]
+    n = len(x)
+    g, j = np.modf(a + (n+b) * q - 1)
+    if j < 0:
+        return y[0]
+    elif j >= n:
+        return y[n-1]   # oct. 8, 2010 y[n]???!! uncaught  off by 1 error!!!
+
+    j = int(np.floor(j))
+    if g == 0:
+        return y[j]
+    else:
+        return y[j] + (y[j+1] - y[j]) * (c + d * g)
+
+
+def oneD2twoD(vector, shape2, axis):
+    '''
+    helper function to convert 1D to 2D data
+    '''
+    if axis == 0:
+        matrix = np.zeros((shape2, len(vector)))
+        for h in np.arange(shape2):
+            matrix[h] = vector
+    elif axis == 1:
+        matrix = np.zeros((len(vector), shape2))
+        for h in np.arange(shape2):
+            matrix[:, h] = vector
+    else:
+        raise ValueError("wrong axis")
+    return matrix
+
+
+def limitMaInidces(iArray, max):
+    '''
+    helper function to limit indices to certain interval
+    lower limit 0
+    max in python style -> actuallay max-1
+
+    '''
+    reArray = np.ma.masked_all_like(iArray.ravel())
+    shape = iArray.shape
+    for n, i in enumerate(iArray.ravel()):
+        if i >= max:
+            reArray[n] = i - max
+        elif i < 0:
+            reArray[n] = i + max
+        else:
+            reArray[n] = i
+    return reArray.reshape(shape)
+
+
 def _get_netCDF_module(ncForm="NETCDF3"):
-  '''
-  helper function to determine which netCDF module is loaded, to enable 
-  consistency between the various writeNetCDF methods.
+    '''
+    helper function to determine which netCDF module is loaded, to enable 
+    consistency between the various writeNetCDF methods.
 
-  Returns both 'nc' (the netCDF module) and 'pyNC', a bool variable which 
-  controls how some attribute data is set, and how to create the netCDF file 
-  (since the function is different in the various netCDF modules.)
-  '''
+    Returns both 'nc' (the netCDF module) and 'pyNC', a bool variable which 
+    controls how some attribute data is set, and how to create the netCDF file 
+    (since the function is different in the various netCDF modules.)
+    '''
 
-  #most syntax is identical, but there is one nasty difference regarding the fillValue...
-  if ncForm in ["NETCDF3_CLASSIC", "NETCDF3_64BIT", "NETCDF4_CLASSIC", "NETCDF4"]:
-    import netCDF4 as nc
-    pyNc = True
-  elif ncForm in ["NETCDF3"]:
-    try:
-      import Scientific.IO.NetCDF as nc
-      pyNc = False
-    except:
-      #fallback for netcdf3 with the same syntax as netcdf4!
-      import netCDF3 as nc
-      pyNc = True
-    else:
-      raise ValueError("Unknown nc form "+ncForm)
+    # most syntax is identical, but there is one nasty difference regarding the fillValue...
+    if ncForm in ["NETCDF3_CLASSIC", "NETCDF3_64BIT", "NETCDF4_CLASSIC", "NETCDF4"]:
+        import netCDF4 as nc
+        pyNc = True
+    elif ncForm in ["NETCDF3"]:
+        try:
+            import Scientific.IO.NetCDF as nc
+            pyNc = False
+        except:
+            # fallback for netcdf3 with the same syntax as netcdf4!
+            import netCDF3 as nc
+            pyNc = True
+        else:
+            raise ValueError("Unknown nc form "+ncForm)
 
-  return nc, pyNc
-
-    
+    return nc, pyNc
