@@ -6,8 +6,8 @@ Improved MRR Processing Tool
 Python toolkit to read, write and process MRR Data. Raw Data, Average and
 Instantaneous Data are supported.
 
-Copyright (C) 2011-2018 Maximilian Maahn, CU Boulder
-maximilian.maahn@colorado.edu
+Copyright (C) 2011-2021 Maximilian Maahn, U Leipzig
+maximilian.maahn_AT_uni-leipzig.de
 https://github.com/maahn/IMProToo
 
 
@@ -209,6 +209,8 @@ class MrrZe:
 
         self.co["ncCreator"] = "IMProToo user"
         self.co["ncDescription"] = "MRR data processed with IMProToo"
+        self.co["ncLocation"] = ""
+        self.co["ncInstitution"] = ""
 
         # ######end of settings#######
 
@@ -525,7 +527,7 @@ class MrrZe:
 
     def _testMeanW(self, rawSpectrum):
         '''
-        checks whether spectrum mean velocity is unequal to mean velocity (6m/s)
+        checks whether spectrum mean velocity is unequal to mean velocity (6m s^-1)
         '''
 
         mask = deepcopy(rawSpectrum.mask) + self._specBorderMask3D
@@ -814,7 +816,7 @@ class MrrZe:
 
         # iterate through spectras:
         for k in np.arange(iMax.shape[0]):
-                # the rolling allow recognition also if 0 m/s is crossed
+                # the rolling allow recognition also if 0 m s^-1 is crossed
             rolledSpectrum = np.roll(dataFlat[k], -iMax[k])
             rolledMask = np.roll(maskDescAve[k], -iMax[k])
             meanRightOld = np.ma.mean(
@@ -852,12 +854,12 @@ class MrrZe:
 
     def _fillInterpolatedPeakGaps(self, specMask):
         '''
-        Interpolate gaps of specMask around 0 m/s between spectrumBorderMin and spectrumBorderMax in noH heights
+        Interpolate gaps of specMask around 0 m s^-1 between spectrumBorderMin and spectrumBorderMax in noH heights
         returns updated specMask and quality information
         '''
         quality = np.zeros(self._shape2D, dtype=bool)
         for h in range(1, self.co["noH"]):
-            # the ones with peaks at both sides around 0 m/s!
+            # the ones with peaks at both sides around 0 m s^-1!
             peaksAroundZero = (specMask[:, h-1, self.co["spectrumBorderMax"][h-1]-1] == False) * (
                 specMask[:, h, self.co["spectrumBorderMin"][h]] == False)
             specMask[:, h, 0:self.co["spectrumBorderMin"]
@@ -1471,7 +1473,7 @@ class MrrZe:
         W = my.filled(-9999)
         # spec width is weighted std
         specWidth = np.sqrt(mom2).filled(-9999)
-        # http://mathworld.wolfram.com/Skewness.html
+        # http://mathworld.wolfram.com S^-1kewness.html
         skewness = (mom3/mom2**(3./2.)).filled(-9999)
         # http://mathworld.wolfram.com/Kurtosis.html
         kurtosis = (mom4/mom2**(2.)).filled(-9999)
@@ -1522,7 +1524,7 @@ class MrrZe:
         description = ''
         description += 'A) usually, the following erros can be ignored (no. is position of bit): '
         qualFac["interpolatedSpectrum"] = 0b1
-        description += '1) spectrum interpolated around 0 and 12 m/s '
+        description += '1) spectrum interpolated around 0 and 12 m s^-1 '
 
         qualFac["filledInterpolatedPeakGaps"] = 0b10
         description += '2) peak streches over interpolated part '
@@ -1589,12 +1591,17 @@ class MrrZe:
             cdfFile = nc.NetCDFFile(fname, "w")
 
         # write meta data
-        cdfFile.history = "Created by " + \
-            self.co["ncCreator"]+" at " + \
-            datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
-        cdfFile.description = self.co["ncDescription"]
-        cdfFile.author = self.co["ncCreator"]
-        cdfFile.source = 'Created with IMProToo v' + __version__
+        cdfFile.title = 'Micro rain radar data processed with IMProToo'
+        cdfFile.comment = 'IMProToo has been developed for improved snow measurements. Note that this data has been processed regardless of precipitation type.'
+        cdfFile.institution = self.co["ncInstitution"]
+        cdfFile.contact_person = self.co["ncCreator"]
+        cdfFile.source = 'MRR-2'
+        cdfFile.location = self.co["ncLocation"]
+        cdfFile.history = 'Created with IMProToo v'+ __version__
+        cdfFile.author = 'Max Maahn'
+        cdfFile.processing_date = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        cdfFile.reference = 'Maahn, M. and Kollias, P., 2012: Improved Micro Rain Radar snow measurements using Doppler spectra post-processing, Atmos. Meas. Tech., 5, 2661-2673, doi:10.5194/amt-5-2661-2012. '
+
         cdfFile.properties = str(self.co)
         cdfFile.mrrHeader = str(self.header)
 
@@ -1632,7 +1639,7 @@ class MrrZe:
         nc_velocity = cdfFile.createVariable(
             'velocity', 'f', ('velocity',), **fillVDict)
         nc_velocity.description = "Doppler velocity bins. If dealiasing is applied, the spectra are triplicated"
-        nc_velocity.units = 'm/s'
+        nc_velocity.units = 'm s^-1'
         nc_velocity[:] = np.array(self.specVel, dtype="f4")
         #if not pyNc: nc_velocity._FillValue =float(self.missingNumber)
 
@@ -1640,7 +1647,7 @@ class MrrZe:
             nc_velocity_noDA = cdfFile.createVariable(
                 'velocity_noDA', 'f', ('velocity_noDA',), **fillVDict)
             nc_velocity_noDA.description = "Original, non dealiased, Doppler velocity bins."
-            nc_velocity_noDA.units = 'm/s'
+            nc_velocity_noDA.units = 'm s^-1'
             nc_velocity_noDA[:] = np.array(self.specVel_noDA, dtype="f4")
             #if not pyNc: nc_velocity_noDA._FillValue =float(self.missingNumber)
 
@@ -1655,7 +1662,7 @@ class MrrZe:
             nc_eta_noDA = cdfFile.createVariable(
                 'eta_noDA', 'f', ncShape3D_noDA, **fillVDict)
             nc_eta_noDA.description = "spectral reflectivities NOT dealiased"
-            nc_eta_noDA.units = "mm^6/m^3"
+            nc_eta_noDA.units = "mm^6 m^-3"
             nc_eta_noDA[:] = np.array(self.eta_noDA.data, dtype="f4")
             #if not pyNc: nc_eta_noDA._FillValue =float(self.missingNumber)
 
@@ -1669,8 +1676,8 @@ class MrrZe:
 
         if varsToSave == 'all' or "eta" in varsToSave:
             nc_eta = cdfFile.createVariable('eta', 'f', ncShape3D, **fillVDict)
-            nc_eta.description = "spectral reflectivities. if dealiasing is applied, the spectra are triplicated, thus up to three peaks can occur from -12 to +24 m/s. However, only one peak is not masked in etaMask"
-            nc_eta.units = "mm^6/m^3"
+            nc_eta.description = "spectral reflectivities. if dealiasing is applied, the spectra are triplicated, thus up to three peaks can occur from -12 to +24 m s^-1. However, only one peak is not masked in etaMask"
+            nc_eta.units = "mm^6 m^-3"
             nc_eta[:] = np.array(self.eta.data, dtype="f4")
             #if not pyNc: nc_eta._FillValue =float(self.missingNumber)
 
@@ -1718,7 +1725,7 @@ class MrrZe:
             nc_specWidth_noDA = cdfFile.createVariable(
                 'spectralWidth_noDA', 'f', ncShape2D, **fillVDict)
             nc_specWidth_noDA.description = "spectral width of the most significant peak, not dealiased"
-            nc_specWidth_noDA.units = "m/s"
+            nc_specWidth_noDA.units = "m s^-1"
             nc_specWidth_noDA[:] = np.array(self.specWidth_noDA, dtype="f4")
             #if not pyNc: nc_specWidth_noDA._FillValue =float(self.missingNumber)
 
@@ -1726,7 +1733,7 @@ class MrrZe:
             nc_specWidth = cdfFile.createVariable(
                 'spectralWidth', 'f', ncShape2D, **fillVDict)
             nc_specWidth.description = "spectral width of the most significant peak"
-            nc_specWidth.units = "m/s"
+            nc_specWidth.units = "m s^-1"
             nc_specWidth[:] = np.array(self.specWidth, dtype="f4")
             #if not pyNc: nc_specWidth._FillValue =float(self.missingNumber)
 
@@ -1734,7 +1741,7 @@ class MrrZe:
             nc_skewness_noDA = cdfFile.createVariable(
                 'skewness_noDA', 'f', ncShape2D, **fillVDict)
             nc_skewness_noDA.description = "Skewness of the most significant peak, not dealiased"
-            nc_skewness_noDA.units = "m/s"
+            nc_skewness_noDA.units = "-"
             nc_skewness_noDA[:] = np.array(self.skewness_noDA, dtype="f4")
             #if not pyNc: nc_skewness_noDA._FillValue =float(self.missingNumber)
 
@@ -1742,7 +1749,7 @@ class MrrZe:
             nc_skewness = cdfFile.createVariable(
                 'skewness', 'f', ncShape2D, **fillVDict)
             nc_skewness.description = "Skewness of the most significant peak"
-            nc_skewness.units = "m/s"
+            nc_skewness.units = "-"
             nc_skewness[:] = np.array(self.skewness, dtype="f4")
             #if not pyNc: nc_skewness._FillValue =float(self.missingNumber)
 
@@ -1750,7 +1757,7 @@ class MrrZe:
             nc_kurtosis_noDA = cdfFile.createVariable(
                 'kurtosis_noDA', 'f', ncShape2D, **fillVDict)
             nc_kurtosis_noDA.description = "kurtosis of the most significant peak, not dealiased"
-            nc_kurtosis_noDA.units = "m/s"
+            nc_kurtosis_noDA.units = "-"
             nc_kurtosis_noDA[:] = np.array(self.kurtosis_noDA, dtype="f4")
             #if not pyNc: nc_kurtosis_noDA._FillValue =float(self.missingNumber)
 
@@ -1758,7 +1765,7 @@ class MrrZe:
             nc_kurtosis = cdfFile.createVariable(
                 'kurtosis', 'f', ncShape2D, **fillVDict)
             nc_kurtosis.description = "kurtosis of the most significant peak"
-            nc_kurtosis.units = "m/s"
+            nc_kurtosis.units = "-"
             nc_kurtosis[:] = np.array(self.kurtosis, dtype="f4")
             #if not pyNc: nc_kurtosis._FillValue =float(self.missingNumber)
 
@@ -1766,7 +1773,7 @@ class MrrZe:
             nc_peakVelLeftBorder_noDA = cdfFile.createVariable(
                 'peakVelLeftBorder_noDA', 'f', ncShape2D, **fillVDict)
             nc_peakVelLeftBorder_noDA.description = "Doppler velocity of the left border of the peak, not dealiased"
-            nc_peakVelLeftBorder_noDA.units = "m/s"
+            nc_peakVelLeftBorder_noDA.units = "m s^-1"
             nc_peakVelLeftBorder_noDA[:] = np.array(
                 self.peakVelLeftBorder_noDA, dtype="f4")
             #if not pyNc: nc_peakVelLeftBorder_noDA._FillValue =float(self.missingNumber)
@@ -1775,7 +1782,7 @@ class MrrZe:
             nc_peakVelLeftBorder = cdfFile.createVariable(
                 'peakVelLeftBorder', 'f', ncShape2D, **fillVDict)
             nc_peakVelLeftBorder.description = "Doppler velocity of the left border of the peak"
-            nc_peakVelLeftBorder.units = "m/s"
+            nc_peakVelLeftBorder.units = "m s^-1"
             nc_peakVelLeftBorder[:] = np.array(
                 self.peakVelLeftBorder, dtype="f4")
             #if not pyNc: nc_peakVelLeftBorder._FillValue =float(self.missingNumber)
@@ -1784,7 +1791,7 @@ class MrrZe:
             nc_peakVelRightBorder_noDA = cdfFile.createVariable(
                 'peakVelRightBorder_noDA', 'f', ncShape2D, **fillVDict)
             nc_peakVelRightBorder_noDA.description = "Doppler velocity of the right border of the peak, not dealiased"
-            nc_peakVelRightBorder_noDA.units = "m/s"
+            nc_peakVelRightBorder_noDA.units = "m s^-1"
             nc_peakVelRightBorder_noDA[:] = np.array(
                 self.peakVelRightBorder_noDA, dtype="f4")
             #if not pyNc: nc_peakVelRightBorder_noDA._FillValue =float(self.missingNumber)
@@ -1793,7 +1800,7 @@ class MrrZe:
             nc_peakVelRightBorder = cdfFile.createVariable(
                 'peakVelRightBorder', 'f', ncShape2D, **fillVDict)
             nc_peakVelRightBorder.description = "Doppler velocity of the right border of the peak"
-            nc_peakVelRightBorder.units = "m/s"
+            nc_peakVelRightBorder.units = "m s^-1"
             nc_peakVelRightBorder[:] = np.array(
                 self.peakVelRightBorder, dtype="f4")
             #if not pyNc: nc_peakVelRightBorder._FillValue =float(self.missingNumber)
@@ -1802,7 +1809,7 @@ class MrrZe:
             nc_leftSlope_noDA = cdfFile.createVariable(
                 'leftSlope_noDA', 'f', ncShape2D, **fillVDict)
             nc_leftSlope_noDA.description = "Slope at the left side of the peak, not dealiased"
-            nc_leftSlope_noDA.units = "dB/(m/s)"
+            nc_leftSlope_noDA.units = "dB/(m s^-1)"
             nc_leftSlope_noDA[:] = np.array(self.leftSlope_noDA, dtype="f4")
             #if not pyNc: nc_leftSlope_noDA._FillValue =float(self.missingNumber)
 
@@ -1810,7 +1817,7 @@ class MrrZe:
             nc_leftSlope = cdfFile.createVariable(
                 'leftSlope', 'f', ncShape2D, **fillVDict)
             nc_leftSlope.description = "Slope at the left side of the peak"
-            nc_leftSlope.units = "dB/(m/s)"
+            nc_leftSlope.units = "dB/(m s^-1)"
             nc_leftSlope[:] = np.array(self.leftSlope, dtype="f4")
             #if not pyNc: nc_leftSlope._FillValue =float(self.missingNumber)
 
@@ -1818,7 +1825,7 @@ class MrrZe:
             nc_rightSlope_noDA = cdfFile.createVariable(
                 'rightSlope_noDA', 'f', ncShape2D, **fillVDict)
             nc_rightSlope_noDA.description = "Slope at the right side of the peak, not dealiased"
-            nc_rightSlope_noDA.units = "dB/(m/s)"
+            nc_rightSlope_noDA.units = "dB/(m s^-1)"
             nc_rightSlope_noDA[:] = np.array(self.rightSlope_noDA, dtype="f4")
             #if not pyNc: nc_rightSlope_noDA._FillValue =float(self.missingNumber)
 
@@ -1826,7 +1833,7 @@ class MrrZe:
             nc_rightSlope = cdfFile.createVariable(
                 'rightSlope', 'f', ncShape2D, **fillVDict)
             nc_rightSlope.description = "Slope at the right side of the peak"
-            nc_rightSlope.units = "dB/(m/s)"
+            nc_rightSlope.units = "dB/(m s^-1)"
             nc_rightSlope[:] = np.array(self.rightSlope, dtype="f4")
             #if not pyNc: nc_rightSlope._FillValue =float(self.missingNumber)
 
@@ -1834,14 +1841,14 @@ class MrrZe:
             nc_w_noDA = cdfFile.createVariable(
                 'W_noDA', 'f', ncShape2D, **fillVDict)
             nc_w_noDA.description = "Mean Doppler Velocity of the most significant peak, not dealiased"
-            nc_w_noDA.units = "m/s"
+            nc_w_noDA.units = "m s^-1"
             nc_w_noDA[:] = np.array(self.W_noDA, dtype="f4")
             #if not pyNc: nc_w_noDA._FillValue =float(self.missingNumber)
 
         if varsToSave == 'all' or "W" in varsToSave:
             nc_w = cdfFile.createVariable('W', 'f', ncShape2D, **fillVDict)
             nc_w.description = "Mean Doppler Velocity of the most significant peak"
-            nc_w.units = "m/s"
+            nc_w.units = "m s^-1"
             nc_w[:] = np.array(self.W, dtype="f4")
             #if not pyNc: nc_w._FillValue =float(self.missingNumber)
 
@@ -1849,7 +1856,7 @@ class MrrZe:
             nc_noiseAve = cdfFile.createVariable(
                 'etaNoiseAve', 'f', ncShape2D, **fillVDict)
             nc_noiseAve.description = "mean noise of one Doppler Spectrum in the same units as eta, never dealiased"
-            nc_noiseAve.units = "mm^6/m^3"
+            nc_noiseAve.units = "mm^6 m^-3"
             nc_noiseAve[:] = np.array(self.etaNoiseAve, dtype="f4")
             #if not pyNc: nc_noiseAve._FillValue =float(self.missingNumber)
 
@@ -1857,7 +1864,7 @@ class MrrZe:
             nc_noiseStd = cdfFile.createVariable(
                 'etaNoiseStd', 'f', ncShape2D, **fillVDict)
             nc_noiseStd.description = "std of noise of one Doppler Spectrum in the same units as eta, never dealiased"
-            nc_noiseStd.units = "mm^6/m^3"
+            nc_noiseStd.units = "mm^6 m^-3"
             nc_noiseStd[:] = np.array(self.etaNoiseStd, dtype="f4")
             #if not pyNc: nc_noiseStd._FillValue =float(self.missingNumber)
 
@@ -2223,13 +2230,14 @@ class mrrProcessedData:
             print("done reading")
     # end def __init__
 
-    def writeNetCDF(self, fileOut, author="IMProToo", description="MRR Averaged or Processed Data", ncForm="NETCDF3_CLASSIC"):
+    def writeNetCDF(self, fileOut, author="IMProToo", location="", institution="", ncForm="NETCDF3_CLASSIC"):
         '''
         writes MRR Average or Instantaneous Data into Netcdf file
 
         @parameter fileOut (str): netCDF file name
         @parameter author (str): Author for netCDF meta data (default:IMProToo)
-        @parameter description (str): Description for NetCDF Metadata (default: empty)
+        @parameter location (str): Location of instrument for NetCDF Metadata (default: "")
+        @parameter institution (str): Institution to whom the instrument belongs (default: "")
         @parameter ncForm (str): netCDF Format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package, NETCDF3 takes the "old" Scientific.IO.NetCDF module, which is a bit more convinient to install or as fall back option python-netcdf3
 
         '''
@@ -2248,10 +2256,18 @@ class mrrProcessedData:
 
         print("writing %s ..." % (fileOut))
         # Attributes
-        cdfFile.history = 'Created ' + str(time.ctime(time.time()))
-        cdfFile.source = 'Created by '+author + ' with IMProToo v' + __version__
+        cdfFile.history = 'Created with IMProToo v'+ __version__
+        cdfFile.author = 'Max Maahn'
+        cdfFile.processing_date = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        cdfFile.reference = 'Maahn, M. and Kollias, P., 2012: Improved Micro Rain Radar snow measurements using Doppler spectra post-processing, Atmos. Meas. Tech., 5, 2661-2673, doi:10.5194/amt-5-2661-2012. '
+        cdfFile.title = 'Micro rain radar averaged data (Metek standard output) converted to netcdf'
+        cdfFile.comment = 'This data is only valid in case of liquid precipitation. Note that this data has been processed regardless of precipitation type and additional external information about precipitation type is needed for correct interpretation of the measurements.'
+        cdfFile.institution = institution
+        cdfFile.contact_person = author
+        cdfFile.source = 'MRR-2'
+        cdfFile.location = location
         cdfFile.mrrHeader = self.header
-        cdfFile.description = description
+
 
         # Dimensions
         cdfFile.createDimension('MRR rangegate', 31)
@@ -2315,7 +2331,7 @@ class mrrProcessedData:
 
         nc_w = cdfFile.createVariable(
             'MRR_W', 'f', ('time', 'MRR rangegate',), **fillVDict)
-        nc_w.units = 'm/s'
+        nc_w.units = 'm s^-1'
 
         # fill dimensions
         nc_classes[:] = np.arange(0, 64, 1, dtype="i4")
