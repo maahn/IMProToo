@@ -2312,7 +2312,7 @@ class mrrProcessedData:
         nc_capitalZ = cdfFile.createVariable(
             'Z', 'f', ('time', 'rangegate',), **fillVDict)
         nc_capitalZ.units = 'dBZ'
-        nc_pia.description = 'radar reflectivity factor (int N(D) * D^6)'
+        nc_capitalZ.description = 'radar reflectivity factor (int N(D) * D^6)'
 
         #nc_smallz = cdfFile.createVariable(
         #    'Small_z', 'f', ('time', 'rangegate',), **fillVDict)
