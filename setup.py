@@ -36,7 +36,7 @@ if __name__ == "__main__":
           "Topic :: Utilities",
           "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
           "Operating System :: OS Independent",
-          "Programming Language :: Python :: 2.7"
+          "Programming Language :: Python"
           'Intended Audience :: Science/Research',
           'Topic :: Scientific/Engineering',
           ],

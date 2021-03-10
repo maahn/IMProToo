@@ -10,6 +10,10 @@ The software can be used under the GPL license
 
 ## What's new?
 
+### 0.104
+* Python 3 compatibility (2.7 still working)
+* Meta data bug fix
+
 ### 0.103
 * Non-UTC time stamps permitted 
 * Fixed bug caused by numpy update
@@ -29,7 +33,7 @@ Please quote the article if you use the routine for your publication.
 
 ## How to install
 
-The software is developed for python 2.7 and should run on any recent Linux system (and most likely also Mac OS X). Windows is currently not supported, but probably only minor changes are necessary.
+The software is developed for python 2.7 or 3.6+ and should run on any recent Linux system (and most likely also Mac OS X). Windows is currently not supported, but probably only minor changes are necessary.
 
 The following python packages are required:
   * numpy
