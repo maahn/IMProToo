@@ -2,6 +2,7 @@
 #Copyright (C) 2011,2012 Maximilian Maahn, IGMK (mmaahn@meteo.uni-koeln.de)
 
 #example script for converting mrrRaw data to netcdf using IMProToos
+from __future__ import print_function
 
 import sys
 import numpy as np
@@ -24,7 +25,7 @@ site =  sys.argv[3]
 
 skipExisting=True
 
-print pathIn
+print(pathIn)
 
 try: os.mkdir(pathOut)
 except OSError: pass
@@ -34,7 +35,7 @@ for nfile in np.sort(glob.glob(pathIn+"/*raw*")):
   #get the timestamp
   timestamp = None
   if nfile.split('.')[-1] == 'gz':
-    f = gzip.open(nfile, 'rb')
+    f = gzip.open(nfile, 'rt')
   else:
     f = open(nfile, 'r')
   # Sometimes the first MRR timestamps are from the day before, so we cannot take the first date we found. get list of line breaks
@@ -50,33 +51,37 @@ for nfile in np.sort(glob.glob(pathIn+"/*raw*")):
 
   #now find the date
   try:
-    for string in f:
+    while True:
+      string = str(f.readline())
+      if not string :
+        break
       if string[:2] == "T:":
         timestamp = datetime.datetime.strptime(string[2:14],"%y%m%d%H%M%S").strftime("%Y%m%d")
         break
       elif string[:4] == "MRR ":
         timestamp = datetime.datetime.strptime(string[4:16],"%y%m%d%H%M%S").strftime("%Y%m%d")
         break
+
   finally:
     f.close()
 
   if timestamp is None:
-    print "did not find MRR timesamp in %s, Skipping", nfile
+    print("did not find MRR timesamp in %s, Skipping"%nfile)
     continue
 
   fileOut = pathOut+"/mrr_improtoo_"+version+"_"+site+"_"+timestamp+".nc"
 
   if skipExisting and (os.path.isfile(fileOut) or os.path.isfile(fileOut+".gz")):
-    print "NetCDF file aready exists, skipping: ", timestamp, nfile, fileOut
+    print("NetCDF file aready exists, skipping: ", timestamp, nfile, fileOut)
     continue
 
-  print timestamp, nfile, fileOut
+  print(timestamp, nfile, fileOut)
 
   #load raw data from file
-  print "reading...",nfile
+  print("reading...",nfile)
   try: rawData = IMProToo.mrrRawData(nfile)
   except:
-    print "could not read data"
+    print("could not read data")
     continue
 
   try:
@@ -95,9 +100,9 @@ for nfile in np.sort(glob.glob(pathIn+"/*raw*")):
     processedSpec.rawToSnow()
 
     #write all variables to a netCDF file.
-    print "writing...",fileOut
+    print("writing...",fileOut)
     processedSpec.writeNetCDF(fileOut,ncForm="NETCDF3_CLASSIC")
-  except Exception, error:
-    print str(error)
-    print "could not process data"
+  except Exception as error:
+    print(str(error))
+    print("could not process data")
     continue

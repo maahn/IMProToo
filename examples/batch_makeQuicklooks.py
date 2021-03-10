@@ -13,6 +13,7 @@ numpy, matplotlib, netcdf4-python or python-netcdf
 '''
 
 
+from __future__ import print_function
 
 
 import sys
@@ -58,16 +59,16 @@ def quicklook(site,ncFile,imgFile,imgTitle):
   @parameter imgFile (str): image file name, incl. path, extensions determines file format (e.g. png, eps, pdf ...)
   @parameter imgTitle (str): plot title
   """
-  print "##### " + imgTitle + "######"
+  print("##### " + imgTitle + "######")
   tmpFile = False
   if ncFile.split(".")[-1]=="gz":
     tmpFile = True
     gzFile = deepcopy(ncFile)
     ncFile = tmpDir+"/maxLibs_netcdf_"+''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(5))+".tmp.nc"
-    print 'uncompressing', gzFile, "->",ncFile      
+    print('uncompressing', gzFile, "->",ncFile)      
     os.system("zcat "+gzFile+">"+ncFile)
   else:
-    print 'opening', ncFile
+    print('opening', ncFile)
 
 
 
@@ -196,7 +197,7 @@ def quicklook(site,ncFile,imgFile,imgTitle):
   
 
 if len(sys.argv) < 4:
-  print 'use: batch_makeQuicklooks.py pathIn pathOut site'
+  print('use: batch_makeQuicklooks.py pathIn pathOut site')
   sys.exit()
 
 pathIn = sys.argv[1]
@@ -211,12 +212,12 @@ except OSError: pass
 for ncFile in np.sort(glob.glob(pathIn+"/*")):
   #import pdb;pdb.set_trace()
   date = ncFile.split("_")[-1].split(".")[0]
-  print date, ncFile
+  print(date, ncFile)
   imgFile = pathOut + "/mrr_improtoo_"+IMProToo.__version__+'_'+site+"_"+date+".png"
   imgTitle = site + " " + date + " IMProToo " + IMProToo.__version__
   
   if skipExisting and os.path.isfile(imgFile):
-    print "Quicklook aready exists, skipping: ", date, ncFile, imgFile
+    print("Quicklook aready exists, skipping: ", date, ncFile, imgFile)
     continue
   
   quicklook(site,ncFile,imgFile,imgTitle)

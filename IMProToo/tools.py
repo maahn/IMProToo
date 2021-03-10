@@ -32,6 +32,8 @@ IMProTooTools: various helper functions
 
 '''
 from __future__ import division
+from __future__ import print_function
+
 import numpy as np
 import time
 import datetime
@@ -83,7 +85,7 @@ def readQualityFile(inputFile):
         try:
             # check for comments
             if fields[0][0:1] == '#':
-                print 'comment', ' '.join(fields)
+                print('comment', ' '.join(fields))
                 continue
             # does the line hav its own timestamp?
             if belongsToOldDate == 1:

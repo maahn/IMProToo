@@ -27,6 +27,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
 from __future__ import division
+from __future__ import print_function
+
 import numpy as np
 import gzip
 import re
@@ -298,13 +300,13 @@ class MrrZe:
                     TFsAve[t] = np.ma.average(TFs[booleanTimes], axis=0)
                     noSpecAve[t] = np.ma.sum(noSpec[booleanTimes])
                 else:
-                    print "Skipping data due to changed MRR configuration!"
+                    print("Skipping data due to changed MRR configuration!")
             else:
                 rawSpectraAve[t] = np.nan
                 heightsAve[t] = np.nan
                 TFsAve[t] = np.nan
                 noSpecAve[t] = 0
-                print "No Data at " + str(unix2date(timestamp))
+                print("No Data at " + str(unix2date(timestamp)))
 
         self.rawSpectrum = rawSpectraAve
         self.time = rawTimestampsAve
@@ -567,12 +569,12 @@ class MrrZe:
         # invert mask
         rawSpectrum = np.ma.masked_array(rawSpectrum.data, ~rawSpectrum.mask)
         self.co["findAddtionalPeaksThreshold"] = 15
-        for tt in xrange(self.no_t):
-            for hh in xrange(self.no_h):
+        for tt in range(self.no_t):
+            for hh in range(self.no_h):
                 if hh in self.co["completelyMaskedHeights"]:
                     continue
                 greaterZero = 0
-                for ii in xrange(self.co["spectrumBorderMin"][hh], self.co["spectrumBorderMax"][hh]):
+                for ii in range(self.co["spectrumBorderMin"][hh], self.co["spectrumBorderMax"][hh]):
                     if greaterZero >= self.co["findAddtionalPeaksThreshold"]:
                         qual[tt, hh] = True
                     if rawSpectrum.mask[tt, hh, ii] == True or rawSpectrum.data[tt, hh, ii] <= 0:
@@ -695,7 +697,7 @@ class MrrZe:
         quality["peakTooThinn"] = tooThinn * (np.sum(~peakMask, axis=-1) != 0)
 
         if self.co["debug"] > 0:
-            print "runtime", time.time()-t, "s"
+            print("runtime", time.time()-t, "s")
         # spectrum
         return np.reshape(peakMask, np.shape(spectrum)), quality["peakTooThinn"], quality["veryWidePeakeUsedSecondPeakAlgorithm"]
 
@@ -854,7 +856,7 @@ class MrrZe:
         returns updated specMask and quality information
         '''
         quality = np.zeros(self._shape2D, dtype=bool)
-        for h in xrange(1, self.co["noH"]):
+        for h in range(1, self.co["noH"]):
             # the ones with peaks at both sides around 0 m/s!
             peaksAroundZero = (specMask[:, h-1, self.co["spectrumBorderMax"][h-1]-1] == False) * (
                 specMask[:, h, self.co["spectrumBorderMin"][h]] == False)
@@ -1164,7 +1166,7 @@ class MrrZe:
         trustedPeakHeightStop = np.zeros(self.no_t, dtype=int)
         for t in np.arange(self.no_t):
             # now process the found peaks
-            if t in self._allPeaks.keys():
+            if t in list(self._allPeaks.keys()):
 
                 # the trusted peak needs a certain minimal reflectivity to avoid confusion by interference etc, get the minimum threshold
                 averageZe = np.sum(allPeaksZe[t])/float(len(allPeaksZe[t]))
@@ -1194,7 +1196,7 @@ class MrrZe:
                 if np.all(diffs.mask == True):
                     diffs.mask[:] = False
                     if self.co["debug"] > 4:
-                        print "managed to mask all peaks at " + str(t) + " while trying to find most trustfull one during dealiasing."
+                        print("managed to mask all peaks at " + str(t) + " while trying to find most trustfull one during dealiasing.")
 
                 # the minimum velocity difference tells wehther dealiasing goes up, down or is not applied
                 UpOrDn = np.ma.argmin(np.ma.min(diffs, axis=1))
@@ -1228,7 +1230,7 @@ class MrrZe:
         allPeaksHeight - first guess peak height based on the last bin
         '''
         for t in np.arange(self.no_t):
-            if t in self._allPeaks.keys():
+            if t in list(self._allPeaks.keys()):
                 extendedRawSpectrum[t, trustedPeakHeight[t],
                                     trustedPeakHeightStart[t]:trustedPeakHeightStop[t]+1].mask = False
 
@@ -1239,7 +1241,7 @@ class MrrZe:
 
                 formerPeakVel = trustedPeakVel[t]
                 # loop through all peaks, starting at the trusted one
-                for jj in range(trustedPeakNo[t]-1, -1, -1)+range(trustedPeakNo[t]+1, len(allPeaks[t])):
+                for jj in list(range(trustedPeakNo[t]-1, -1, -1))+list(range(trustedPeakNo[t]+1, len(allPeaks[t]))):
                     # To combine ascending and descending loop in one:
                     if jj == trustedPeakNo[t]+1:
                         formerPeakVel = trustedPeakVel[t]
@@ -1248,7 +1250,7 @@ class MrrZe:
                         np.abs(peaksVels[:, jj] - formerPeakVel))
                     # change height, indices and velocity accordingly
                     thisPeakHeight = allPeaksHeight[t][jj] + UpOrDn-1
-                    if thisPeakHeight not in range(self.co["noH"]):
+                    if thisPeakHeight not in list(range(self.co["noH"])):
                         warnings.warn('Dealiasing failed! peak boundaries excced max/min height. time step '+str(
                             t)+', peak number ' + str(jj)+', tried to put at height ' + str(thisPeakHeight))
                         self.qual["severeProblemsDuringDA"][t] = True
@@ -1277,14 +1279,14 @@ class MrrZe:
                     # if there is already a peak in the height, repeat the process, but take the second likely height/velocity
                     else:
                         if self.co["debug"] > 4:
-                            print 'DA: there is already a peak in found height, take second choice', t, jj, thisPeakHeight, trustedPeakNo[t], trustedPeakHeight
+                            print('DA: there is already a peak in found height, take second choice', t, jj, thisPeakHeight, trustedPeakNo[t], trustedPeakHeight)
                         # otherwise take second choice!
                         formerPeakVelList = np.array([formerPeakVel]*3)
                         formerPeakVelList[UpOrDn] = 1e10  # make extremely big
                         UpOrDn2 = np.ma.argmin(
                             np.abs(peaksVels[:, jj] - formerPeakVelList))
                         thisPeakHeight = allPeaksHeight[t][jj] + UpOrDn2-1
-                        if thisPeakHeight not in range(self.co["noH"]):
+                        if thisPeakHeight not in list(range(self.co["noH"])):
                             warnings.warn('Dealiasing step 2 failed! peak boundaries excced max/min height. time step '+str(
                                 t)+', peak number ' + str(jj)+', tried to put at height ' + str(thisPeakHeight))
                             self.qual["severeProblemsDuringDA"][t] = True
@@ -1361,7 +1363,7 @@ class MrrZe:
             updatedSpectrumMask[tt, 0, :2*self.co["widthSpectrum"]] = True
             self.qual["DAdirectionCorrectedByCoherenceTest"][tt, :] = True
         if self.co["debug"] > 4:
-            print 'coherenceTest corrected dealiasing upwards:', foldUp
+            print('coherenceTest corrected dealiasing upwards:', foldUp)
 
         newSpectrum = np.ma.masked_array(newSpectrum.data, updatedSpectrumMask)
 
@@ -1402,7 +1404,7 @@ class MrrZe:
             updatedSpectrumMask[tt, -1, -2*self.co["widthSpectrum"]:] = True
             self.qual["DAdirectionCorrectedByCoherenceTest"][tt, :] = True
         if self.co["debug"] > 4:
-            print 'coherenceTest corrected dealiasing Donwards:', foldDn
+            print('coherenceTest corrected dealiasing Donwards:', foldDn)
 
         newSpectrum = np.ma.masked_array(newSpectrum.data, updatedSpectrumMask)
 
@@ -1489,10 +1491,10 @@ class MrrZe:
         etaSpectraFlat = eta.reshape((eta.shape[0]*eta.shape[1], eta.shape[2]))
 
         # no get the according values
-        peakEtaLeftBorder = 10*np.log10(etaSpectraFlat[xrange(
-            etaSpectraFlat.shape[0]), peakArgLeftBorder.ravel()].reshape(self._shape2D))
-        peakEtaRightBorder = 10*np.log10(etaSpectraFlat[xrange(
-            etaSpectraFlat.shape[0]), peakArgRightBorder.ravel()].reshape(self._shape2D))
+        peakEtaLeftBorder = 10*np.log10(etaSpectraFlat[list(range(
+            etaSpectraFlat.shape[0])), peakArgLeftBorder.ravel()].reshape(self._shape2D))
+        peakEtaRightBorder = 10*np.log10(etaSpectraFlat[list(range(
+            etaSpectraFlat.shape[0])), peakArgRightBorder.ravel()].reshape(self._shape2D))
 
         peakEtaMax = 10*np.log10(np.max(eta.filled(-9999), axis=-1))
 
@@ -1560,7 +1562,7 @@ class MrrZe:
         qualFac["severeProblemsDuringDA"] = 0b100000000000000000
         description += '18) during dealiasing, a warning was triggered, applied to whole columm '
 
-        for key in qual.keys():
+        for key in list(qual.keys()):
             binQual[:] = binQual[:] + (qual[key] * qualFac[key])
 
         return binQual, description
@@ -1948,7 +1950,7 @@ class mrrProcessedData:
                         string[k:k+i_offset], floatInt))
             except:
                 # try to fix MRR bug
-                print "repairing data at " + str(unix2date(debugTime))
+                print("repairing data at " + str(unix2date(debugTime)))
                 string = string.replace("10000.0", "10000.")
                 string = string.replace("1000.00", "1000.0")
                 string = string.replace("100.000", "100.00")
@@ -1992,32 +1994,32 @@ class mrrProcessedData:
         # go through all files
         for f, file in enumerate(files):
             if verbosity > 1:
-                print "%s of %s:" % (f+1, len(files)), file
+                print("%s of %s:" % (f+1, len(files)), file)
 
             # open file, gzip or ascii
             try:
                 if file[-3:] == ".gz":
                     try:
-                        allData = gzip.open(file, 'rb')
+                        allData = gzip.open(file, 'rt')
                     except:
-                        print "could not open:", file
+                        print("could not open:", file)
                         raise IOError("could not open:" + file)
                 else:
                     try:
                         allData = open(file, 'r')
                     except:
-                        print "could not open:", file
+                        print("could not open:", file)
                         raise IOError("could not open:" + file)
 
                 if len(allData.read(10)) == 0:
-                    print file, "empty!"
+                    print(file, "empty!")
                     allData.close()
                     raise IOError("File empty")
                 else:
                     allData.seek(0)
                     i = 0
             except IOError:
-                print "skipping...", file
+                print("skipping...", file)
                 continue
 
             foundAtLeastOneFile = True
@@ -2049,15 +2051,15 @@ class mrrProcessedData:
 
             try:
                 del dataMRR[0]
-                print "Warning: some lines without timestamp"
+                print("Warning: some lines without timestamp")
             except:
                 pass
 
             if debugLimit == 0:
-                debugLimit = len(dataMRR.keys())
+                debugLimit = len(list(dataMRR.keys()))
 
             # create arrays for data
-            aveTimestamps = np.array(np.sort(dataMRR.keys())[
+            aveTimestamps = np.array(np.sort(list(dataMRR.keys()))[
                                      0:debugLimit], dtype=int)
             aveH = np.ones((debugLimit, 31), dtype=float)*np.nan
             aveTF = np.ones((debugLimit, 31), dtype=float)*np.nan
@@ -2150,7 +2152,7 @@ class mrrProcessedData:
                     elif len(dataLine) == 2:
                         continue
                     else:
-                        print "? Line not recognized:", str(unix2date(timestamp)), dataLine, len(dataLine)
+                        print("? Line not recognized:", str(unix2date(timestamp)), dataLine, len(dataLine))
 
             # join arrays of different files
             try:
@@ -2190,7 +2192,7 @@ class mrrProcessedData:
         try:
             self.header
         except:
-            print "did not find any MRR data in file!"
+            print("did not find any MRR data in file!")
             raise IOError("did not find any MRR data in file!")
         del aveTimestamps, aveH, aveTF, aveF, aveN, aveD, aveK, avePIA, aveCapitalZ, aveSmallz, aveRR, aveLWC, aveW
 
@@ -2218,7 +2220,7 @@ class mrrProcessedData:
         self.shape3D = np.shape(self.mrrF)
 
         if verbosity > 0:
-            print "done reading"
+            print("done reading")
     # end def __init__
 
     def writeNetCDF(self, fileOut, author="IMProToo", description="MRR Averaged or Processed Data", ncForm="NETCDF3_CLASSIC"):
@@ -2465,31 +2467,31 @@ class mrrRawData:
 
         # go thorugh all files
         for f, file in enumerate(files):
-            print "%s of %s:" % (f+1, len(files)), file
+            print("%s of %s:" % (f+1, len(files)), file)
             # open file gz or ascii
             try:
                 if file[-3:] == ".gz":
                     try:
-                        allData = gzip.open(file, 'rb')
+                        allData = gzip.open(file, 'rt')
                     except:
-                        print "could not open:", file
+                        print("could not open:", file)
                         raise IOError("could not open:" + file)
                 else:
                     try:
                         allData = open(file, 'r')
                     except:
-                        print "could not open:", file
+                        print("could not open:", file)
                         raise IOError("could not open:" + file)
 
                 if len(allData.read(10)) == 0:
-                    print file, "empty!"
+                    print(file, "empty!")
                     allData.close()
                     raise IOError("File empty")
                 else:
                     allData.seek(0)
                     i = 0
             except IOError:
-                print "skipping..."
+                print("skipping...")
                 continue
 
             foundAtLeastOneFile = True
@@ -2541,13 +2543,13 @@ class mrrRawData:
                 raise IOError("must be either new or old file format!")
 
             if debugLimit == 0:
-                debugLimit = len(dataMRR.keys())
+                debugLimit = len(list(dataMRR.keys()))
 
             specLength = debugLimit - debugStart
 
             # create arrays for data
             rawSpectra = np.ones((specLength, 32, 64), dtype=int)*np.nan
-            rawTimestamps = np.array(np.sort(dataMRR.keys())[
+            rawTimestamps = np.array(np.sort(list(dataMRR.keys()))[
                                      debugStart:debugLimit], dtype=int)
             rawHeights = np.ones((specLength, 32), dtype=int)*np.nan
             rawTFs = np.ones((specLength, 32), dtype=float)*np.nan
@@ -2649,7 +2651,7 @@ class mrrRawData:
         try:
             self.header
         except:
-            print "did not find any MRR data in file!"
+            print("did not find any MRR data in file!")
             raise IOError("did not find any MRR data in file!")
         del rawHeights, rawTimestamps, rawTFs, rawSpectra
 
