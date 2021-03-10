@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 '''
-Copyright (C) 2011,2012 Maximilian Maahn, IGMK (mmaahn@meteo.uni-koeln.de)
+Copyright (C) 2011-2021 Maximilian Maahn, U Leipzig
+maximilian.maahn_AT_uni-leipzig.de
+
 make quicklooks from IMProToo NetCDF files.
 
 
@@ -102,7 +104,7 @@ def quicklook(site,ncFile,imgFile,imgTitle):
   sp1 = fig.add_subplot(511)
   sp1.set_title(imgTitle)
   levels = np.arange(-15,40,0.1)
-  plotCF = sp1.contourf(timestampsNew,HNew, ZeNew, levels,cmap=plt.get_cmap("spectral"), extend="both")#
+  plotCF = sp1.contourf(timestampsNew,HNew, ZeNew, levels, extend="both")#
   cbZe=plt.colorbar(plotCF)
   cbZe.set_label('MRR Ze [dBz]')
   sp1.set_ylim(ylim)
@@ -113,7 +115,7 @@ def quicklook(site,ncFile,imgFile,imgTitle):
 
   sp2 = fig.add_subplot(512)
   levels = np.arange(-10,18,0.1)
-  plotCF = sp2.contourf(timestampsNew,HNew, WNew, levels,cmap=plt.get_cmap("spectral"), extend="both")#
+  plotCF = sp2.contourf(timestampsNew,HNew, WNew, levels, extend="both")#
   cbZe=plt.colorbar(plotCF)
   cbZe.set_label('MRR W [m/s]')
   sp2.set_ylim(ylim)
@@ -124,7 +126,7 @@ def quicklook(site,ncFile,imgFile,imgTitle):
   
   sp3 = fig.add_subplot(513)
   levels = np.arange(0,1.5,0.1)
-  plotCF = sp3.contourf(timestampsNew,HNew, spectralWidthNew, levels,cmap=plt.get_cmap("spectral"), extend="both")#
+  plotCF = sp3.contourf(timestampsNew,HNew, spectralWidthNew, levels, extend="both")#
   cbZe=plt.colorbar(plotCF)
   cbZe.set_label('spectralWidth [m/s]')
   sp3.set_ylim(ylim)
@@ -135,7 +137,7 @@ def quicklook(site,ncFile,imgFile,imgTitle):
 
   sp4 = fig.add_subplot(514)
   levels = np.arange(1e-10,1e-8,2e-10)
-  plotCF = sp4.contourf(timestampsNew,HNew, noiseAveNew, levels,cmap=plt.get_cmap("spectral"), extend="both")#
+  plotCF = sp4.contourf(timestampsNew,HNew, noiseAveNew, levels, extend="both")#
   cbZe=plt.colorbar(plotCF)
   cbZe.set_label('mean spectral noise [1/m]')
   sp4.set_ylim(ylim)
@@ -149,7 +151,7 @@ def quicklook(site,ncFile,imgFile,imgTitle):
   levels = np.arange(20)
   for i in levels:
     levels[i] = 2**i
-  plotCF = sp5.contourf(timestampsNew,HNew, qualityNew, levels,cmap=plt.get_cmap("spectral"), norm = matplotlib.colors.LogNorm())#
+  plotCF = sp5.contourf(timestampsNew,HNew, qualityNew, levels, norm = matplotlib.colors.LogNorm())#
   cbZe=plt.colorbar(plotCF)
   cbZe.set_label('quality array')
   sp5.set_ylim(ylim)
@@ -209,7 +211,7 @@ try: os.mkdir(pathOut)
 except OSError: pass
 
 
-for ncFile in np.sort(glob.glob(pathIn+"/*")):
+for ncFile in np.sort(glob.glob(pathIn+"/*nc")):
   #import pdb;pdb.set_trace()
   date = ncFile.split("_")[-1].split(".")[0]
   print(date, ncFile)

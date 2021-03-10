@@ -8,8 +8,8 @@ Instantaneous Data are supported.
 
 This file includes some helper functions
 
-Copyright (C) 2011-2018 Maximilian Maahn, CU Boulder
-maximilian.maahn@colorado.edu
+Copyright (C) 2011-2021 Maximilian Maahn, U Leipzig
+maximilian.maahn_AT_uni-leipzig.de
 https://github.com/maahn/IMProToo
 
 This program is free software: you can redistribute it and/or modify

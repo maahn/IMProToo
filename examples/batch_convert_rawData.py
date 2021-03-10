@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
-#Copyright (C) 2011,2012 Maximilian Maahn, IGMK (mmaahn@meteo.uni-koeln.de)
 
-#example script for converting mrrRaw data to netcdf using IMProToos
+'''
+Copyright (C) 2011-2021 Maximilian Maahn, U Leipzig
+maximilian.maahn_AT_uni-leipzig.de
+
+example script for converting mrrRaw data to netcdf using IMProToos
+'''
 from __future__ import print_function
 
 import sys
