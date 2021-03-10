@@ -173,7 +173,9 @@ class MrrZe:
     
     self.co["ncCreator"] = "IMProToo user"    
     self.co["ncDescription"] = "MRR data processed with IMProToo"    
-    
+    self.co["ncLocation"] = " "    
+    self.co["ncInstitution"] = " "    
+     
     #######end of settings#######    
 
     
@@ -1050,8 +1052,8 @@ class MrrZe:
     trustedPeakHeight = np.zeros(self.no_t,dtype=int)
     trustedPeakVel = np.zeros(self.no_t)
     trustedPeakNo = np.ones(self.no_t,dtype=int)*-9999
-    trustedPeakHeightStart = np.zeros(self.no_t)
-    trustedPeakHeightStop = np.zeros(self.no_t)
+    trustedPeakHeightStart = np.zeros(self.no_t,dtype=int)
+    trustedPeakHeightStop = np.zeros(self.no_t,dtype=int)
     for t in np.arange(self.no_t):
       #now process the found peaks
       if t in self._allPeaks.keys():
@@ -1433,10 +1435,20 @@ class MrrZe:
     else: cdfFile = nc.NetCDFFile(fname,"w")
     
     ##write meta data
-    cdfFile.history = "Created by "+self.co["ncCreator"]+" at "+ datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
-    cdfFile.description = self.co["ncDescription"]    
-    cdfFile.author = self.co["ncCreator"]
-    cdfFile.source = 'Created with IMProToo v'+ __version__
+    cdfFile.title = 'Micro rain radar data processed with IMProToo'
+    cdfFile.comment = 'IMProToo has been developed for improved snow measurements. Note that this data has been processed regardless of precipitation type.'
+    cdfFile.institution = self.co["ncInstitution"]
+    cdfFile.contact_person = self.co["ncCreator"]
+    cdfFile.source = 'MRR-2'
+    cdfFile.location = self.co["ncLocation"] 
+    cdfFile.history = 'Created with IMProToo v'+ __version__
+    cdfFile.author = 'Max Maahn'
+    cdfFile.processing_date = str(time.ctime(time.time()))
+    cdfFile.reference = 'Maahn, M. and Kollias, P., 2012: Improved Micro Rain Radar snow measurements using Doppler spectra post-processing, Atmos. Meas. Tech., 5, 2661-2673, doi:10.5194/amt-5-2661-2012. ' 
+    #cdfFile.history = "Created by "+self.co["ncCreator"]+" at "+ datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+    #cdfFile.description = self.co["ncDescription"]    
+    #cdfFile.author = self.co["ncCreator"]
+    #cdfFile.source = 'Created with IMProToo v'+ __version__
     cdfFile.properties = str(self.co)
     cdfFile.mrrHeader = str(self.header)
     
@@ -1456,7 +1468,7 @@ class MrrZe:
     
     nc_time = cdfFile.createVariable('time','i',('time',),**fillVDict)
     nc_time.description = "measurement time. Following Meteks convention, the dataset at e.g. 11:55 contains all recorded raw between 11:54:00 and 11:54:59 (if delta t = 60s)!"    
-    nc_time.units = 'seconds since 1970-01-01'
+    nc_time.units = 'seconds since 1970-01-01 00:00:00'
     nc_time[:] = np.array(self.time.filled(self.missingNumber),dtype="i4")
     #commented because of Ubuntu bug: https://bugs.launchpad.net/ubuntu/+source/python-scientific/+bug/1005571
     #if not pyNc: nc_time._FillValue =int(self.missingNumber)
@@ -1526,7 +1538,6 @@ class MrrZe:
     if varsToSave=='all' or "TF" in varsToSave:
       nc_TF = cdfFile.createVariable('TF', 'f',ncShape2D,**fillVDict)
       nc_TF.description="Transfer Function (see Metek's documentation)"
-      nc_TF.units = "-"
       nc_TF[:] = np.array(self.TF.filled(self.missingNumber),dtype="f4")
       #if not pyNc: nc_TF._FillValue =float(self.missingNumber)
 
@@ -1561,28 +1572,24 @@ class MrrZe:
     if (varsToSave=='all' and saveAlsoNonDealiased) or "skewness_noDA" in varsToSave:
       nc_skewness_noDA = cdfFile.createVariable('skewness_noDA', 'f',ncShape2D,**fillVDict)
       nc_skewness_noDA.description="Skewness of the most significant peak, not dealiased"
-      nc_skewness_noDA.units = "m/s"
       nc_skewness_noDA[:] = np.array(self.skewness_noDA,dtype="f4")
       #if not pyNc: nc_skewness_noDA._FillValue =float(self.missingNumber)
       
     if varsToSave=='all' or "skewness" in varsToSave:
       nc_skewness = cdfFile.createVariable('skewness', 'f',ncShape2D,**fillVDict)
       nc_skewness.description="Skewness of the most significant peak"
-      nc_skewness.units = "m/s"
       nc_skewness[:] = np.array(self.skewness,dtype="f4")
       #if not pyNc: nc_skewness._FillValue =float(self.missingNumber)
 
     if (varsToSave=='all' and saveAlsoNonDealiased) or "kurtosis_noDA" in varsToSave:
       nc_kurtosis_noDA = cdfFile.createVariable('kurtosis_noDA', 'f',ncShape2D,**fillVDict)
       nc_kurtosis_noDA.description="kurtosis of the most significant peak, not dealiased"
-      nc_kurtosis_noDA.units = "m/s"
       nc_kurtosis_noDA[:] = np.array(self.kurtosis_noDA,dtype="f4")
       #if not pyNc: nc_kurtosis_noDA._FillValue =float(self.missingNumber)
       
     if varsToSave=='all' or "kurtosis" in varsToSave:
       nc_kurtosis = cdfFile.createVariable('kurtosis', 'f',ncShape2D,**fillVDict)
       nc_kurtosis.description="kurtosis of the most significant peak"
-      nc_kurtosis.units = "m/s"
       nc_kurtosis[:] = np.array(self.kurtosis,dtype="f4")
       #if not pyNc: nc_kurtosis._FillValue =float(self.missingNumber)
 
@@ -2001,13 +2008,14 @@ class mrrProcessedData:
     if verbosity > 0: print "done reading"
   #end def __init__
 
-  def writeNetCDF(self,fileOut,author="IMProToo",description="MRR Averaged or Processed Data",ncForm="NETCDF3_CLASSIC"):
+  def writeNetCDF(self,fileOut,author="IMProToo",location=" ",institution=" ",ncForm="NETCDF3_CLASSIC"):
     '''
     writes MRR Average or Instantaneous Data into Netcdf file
   
     @parameter fileOut (str): netCDF file name
     @parameter author (str): Author for netCDF meta data (default:IMProToo)
-    @parameter description (str): Description for NetCDF Metadata (default: empty)
+    @parameter location (str): Location of instrument for NetCDF Metadata (default: empty)
+    @parameter institution (str): Institution to whom the instrument belongs (default: empty)
     @parameter ncForm (str): netCDF Format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package, NETCDF3 takes the "old" Scientific.IO.NetCDF module, which is a bit more convinient to install or as fall back option python-netcdf3
 
     '''
@@ -2024,60 +2032,75 @@ class mrrProcessedData:
     
     print("writing %s ..."%(fileOut))
     #Attributes
-    cdfFile.history = 'Created ' + str(time.ctime(time.time()))
-    cdfFile.source = 'Created by '+author+ ' with IMProToo v'+ __version__
+    cdfFile.title = 'Micro rain radar averaged data (Metek standard output) converted to netcdf'
+    cdfFile.comment = 'This data is only valid in case of liquid precipitation. Note that this data has been processed regardless of precipitation type and additional external information about precipitation type is needed for correct interpretation of the measurements.'
+    cdfFile.institution = institution
+    cdfFile.contact_person = author
+    cdfFile.source = 'MRR-2'
+    cdfFile.location = location 
     cdfFile.mrrHeader = self.header
-    cdfFile.description = description
+    cdfFile.history = 'Created with IMProToo v'+ __version__
+    cdfFile.author = 'Max Maahn'
+    cdfFile.processing_date = str(time.ctime(time.time()))
+    cdfFile.reference = 'Maahn, M. and Kollias, P., 2012: Improved Micro Rain Radar snow measurements using Doppler spectra post-processing, Atmos. Meas. Tech., 5, 2661-2673, doi:10.5194/amt-5-2661-2012. '
     
     #Dimensions
-    cdfFile.createDimension('MRR rangegate',31)
+    cdfFile.createDimension('rangegate',31)
     cdfFile.createDimension('time', None) #allows Multifile read
-    cdfFile.createDimension('MRR spectralclass', 64)
+    cdfFile.createDimension('spectralclass', 64)
 
     nc_times = cdfFile.createVariable('time','i',('time',),**fillVDict)
-    nc_ranges = cdfFile.createVariable('MRR rangegate','f',('time', 'MRR rangegate',),**fillVDict)
-    nc_classes = cdfFile.createVariable('MRR spectralclass','i',('MRR spectralclass',))
+    nc_ranges = cdfFile.createVariable('rangegate','f',('time', 'rangegate',),**fillVDict)
+    nc_classes = cdfFile.createVariable('spectralclass','i',('spectralclass',))
     
-    nc_times.units = 'UNIX Time Stamp'
+    nc_times.units = 'seconds since 1970-01-01 00:00:00'
+    nc_times.description = 'UTC'
     nc_ranges.units = 'm'
-    nc_classes.units = 'none'
+    #nc_classes.units = 'none'
     
     #Create Variables
-    nc_h = cdfFile.createVariable('MRR_H','f',('time','MRR rangegate',),**fillVDict)
+    nc_h = cdfFile.createVariable('H','f',('time','rangegate',),**fillVDict)
     nc_h.units = 'm'
+    nc_h.description = 'height above instrument'
 
-    nc_tf = cdfFile.createVariable('MRR_TF','f',('time','MRR rangegate',),**fillVDict)
-    nc_tf.units = 'none'
+    #nc_tf = cdfFile.createVariable('MRR_TF','f',('time','MRR rangegate',),**fillVDict)
+    #nc_tf.units = 'none'
     
-    nc_f  = cdfFile.createVariable('MRR_F','f',('time','MRR rangegate','MRR spectralclass',),**fillVDict)
-    nc_f.units = 'dB'
+    #nc_f  = cdfFile.createVariable('MRR_F','f',('time','MRR rangegate','MRR spectralclass',),**fillVDict)
+    #nc_f.units = 'dB'
     
-    nc_d  = cdfFile.createVariable('MRR_D','f',('time','MRR rangegate','MRR spectralclass',),**fillVDict)
-    nc_d.units = 'm^-3 mm^-1'
+    nc_d  = cdfFile.createVariable('D','f',('time','rangegate','spectralclass',),**fillVDict)
+    nc_d.units = 'mm'
+    nc_d.description = 'drop size (center of size class)' 
     
-    nc_n  = cdfFile.createVariable('MRR_N','f',('time','MRR rangegate','MRR spectralclass',),**fillVDict)
-    nc_n.units = '#'
+    nc_n  = cdfFile.createVariable('N','f',('time','rangegate','spectralclass',),**fillVDict)
+    nc_n.units = 'm^-3 mm^-1'
+    nc_n.description = 'spectral drop densities'
     
-    nc_k  = cdfFile.createVariable('MRR_K','f',('time','MRR rangegate',),**fillVDict)
-    nc_k.units = 'dB'
+    #nc_k  = cdfFile.createVariable('K','f',('time','rangegate',),**fillVDict)
+    #nc_k.units = 'dB'
     
-    nc_capitalZ  = cdfFile.createVariable('MRR_Capital_Z','f',('time','MRR rangegate',),**fillVDict)
-    nc_capitalZ.units = 'dBz'
+    #nc_capitalZ  = cdfFile.createVariable('MRR_Capital_Z','f',('time','MRR rangegate',),**fillVDict)
+    #nc_capitalZ.units = 'dBz'
     
-    nc_smallz  = cdfFile.createVariable('MRR_Small_z','f',('time','MRR rangegate',),**fillVDict)
-    nc_smallz.units = 'dBz'
+    #nc_smallz  = cdfFile.createVariable('MRR_Small_z','f',('time','MRR rangegate',),**fillVDict)
+    #nc_smallz.units = 'dBz'
     
-    nc_pia  = cdfFile.createVariable('MRR_PIA','f',('time','MRR rangegate',),**fillVDict)
+    nc_pia  = cdfFile.createVariable('PIA','f',('time','rangegate',),**fillVDict)
     nc_pia.units = 'dB'
+    nc_pia.description = 'two-way path integrated attenuation by rain drops'
     
-    nc_rr  = cdfFile.createVariable('MRR_RR','f',('time','MRR rangegate',),**fillVDict)
-    nc_rr.units = 'mm/h'
+    nc_rr  = cdfFile.createVariable('RR','f',('time','rangegate',),**fillVDict)
+    nc_rr.units = 'mm h^-1'
+    nc_rr.description  = 'rain rate'
     
-    nc_lwc  = cdfFile.createVariable('MRR_LWC','f',('time','MRR rangegate',),**fillVDict)
-    nc_lwc.units = 'g/m^3'
+    nc_lwc  = cdfFile.createVariable('LWC','f',('time','rangegate',),**fillVDict)
+    nc_lwc.units = 'g m^-3'
+    nc_lwc.description = 'liquid water content'
     
-    nc_w  = cdfFile.createVariable('MRR_W','f',('time','MRR rangegate',),**fillVDict)
-    nc_w.units = 'm/s'
+    nc_w  = cdfFile.createVariable('W','f',('time','rangegate',),**fillVDict)
+    nc_w.units = 'm s^-1'
+    nc_w.description = 'fall velocity'
     
     
     # fill dimensions
@@ -2087,13 +2110,13 @@ class mrrProcessedData:
 
     #fill data
     nc_h[:] = np.array(self.mrrH,dtype="f4")
-    nc_tf[:] = np.array(self.mrrTF,dtype="f4")
-    nc_f[:] = np.array(self.mrrF,dtype="f4")
+    #nc_tf[:] = np.array(self.mrrTF,dtype="f4")
+    #nc_f[:] = np.array(self.mrrF,dtype="f4")
     nc_d[:] = np.array(self.mrrD,dtype="f4")
     nc_n[:] = np.array(self.mrrN,dtype="f4")
-    nc_k[:] = np.array(self.mrrK,dtype="f4")
-    nc_capitalZ[:] = np.array(self.mrrCapitalZ,dtype="f4")
-    nc_smallz[:] = np.array(self.mrrSmallz,dtype="f4")
+    #nc_k[:] = np.array(self.mrrK,dtype="f4")
+    #nc_capitalZ[:] = np.array(self.mrrCapitalZ,dtype="f4")
+    #nc_smallz[:] = np.array(self.mrrSmallz,dtype="f4")
     nc_pia[:] = np.array(self.mrrPIA,dtype="f4")
     nc_rr[:] = np.array(self.mrrRR,dtype="f4")
     nc_lwc[:] = np.array(self.mrrLWC,dtype="f4")
