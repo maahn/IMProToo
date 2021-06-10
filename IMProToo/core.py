@@ -2011,8 +2011,8 @@ class mrrProcessedData:
                         raise IOError("could not open:" + file)
                 else:
                     try:
-		        # without errors='ignore', post-processing script crashes 
-			# when loading MRR raw file with some missing/corrupt data
+                        # without errors='ignore', post-processing script crashes 
+                        # when loading MRR raw file with some missing/corrupt data
                         allData = open(file, 'r', errors='ignore')
                     except:
                         print("could not open:", file)
@@ -2494,8 +2494,8 @@ class mrrRawData:
                         raise IOError("could not open:" + file)
                 else:
                     try:
-		        # without errors='ignore', post-processing script crashes 
-			# when loading MRR raw file with some missing/corrupt data
+                        # without errors='ignore', post-processing script crashes 
+                        # when loading MRR raw file with some missing/corrupt data
                         allData = open(file, 'r', errors='ignore')
                     except:
                         print("could not open:", file)
