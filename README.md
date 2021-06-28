@@ -10,6 +10,9 @@ The software can be used under the GPL license
 
 ## What's new?
 
+### 0.105
+* Fixed Python 3 file reading bug (thanks to M. Bartolini)
+
 ### 0.104
 * Python 3 compatibility (2.7 still working)
 * Meta data bug fix
