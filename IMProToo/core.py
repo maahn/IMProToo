@@ -2014,7 +2014,9 @@ class mrrProcessedData:
                     try:
                         # without errors='ignore', post-processing script crashes 
                         # when loading MRR raw file with some missing/corrupt data
-                        allData = open(file, 'r', errors='ignore')
+                        # using codecs.open(... encoding='UTF-8' ...) as this seems to be
+                        # the only method that works in python 2 and 3.
+                        allData = codecs.open(file, 'r', encoding='UTF-8', errors='ignore')
                     except:
                         print("could not open:", file)
                         raise IOError("could not open:" + file)
