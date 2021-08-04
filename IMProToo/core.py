@@ -2431,6 +2431,14 @@ class mrrRawData:
                 self.mrrRawSpectrum = cdfFile.variables['MRR_Spectra'][:]
                 self.mrrRawNoSpec = cdfFile.variables['MRR_NoSpectra'][:]
 
+                try:
+                    self.timezone = str(cdfFile.variables['MRR time'].timezone)
+                except AttributeError:
+                    # this can occur when loading a file created with an older
+                    # version of IMProToo, before the timezone update.
+                    warnings.warn("timezone attribute missing, assuming UTC")
+                    self.timezone = "UTC"
+
                 cdfFile.close()
 
                 self.shape2D = np.shape(self.mrrRawHeight)
