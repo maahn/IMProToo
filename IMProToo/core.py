@@ -40,6 +40,7 @@ from copy import deepcopy
 import warnings
 import sys
 import os
+import codecs
 
 from .tools import unix2date, date2unix, limitMaInidces, quantile
 from .tools import oneD2twoD, _get_netCDF_module
@@ -2496,7 +2497,9 @@ class mrrRawData:
                     try:
                         # without errors='ignore', post-processing script crashes 
                         # when loading MRR raw file with some missing/corrupt data
-                        allData = open(file, 'r', errors='ignore')
+                        # using codecs.open(... encoding='UTF-8' ...) as this seems to be
+                        # the only method that works in python 2 and 3.
+                        allData = codecs.open(file, 'r', encoding='UTF-8', errors='ignore')
                     except:
                         print("could not open:", file)
                         raise IOError("could not open:" + file)
