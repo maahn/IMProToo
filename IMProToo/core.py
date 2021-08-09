@@ -40,6 +40,7 @@ from copy import deepcopy
 import warnings
 import sys
 import os
+import codecs
 
 from .tools import unix2date, date2unix, limitMaInidces, quantile
 from .tools import oneD2twoD, _get_netCDF_module
@@ -2013,7 +2014,9 @@ class mrrProcessedData:
                     try:
                         # without errors='ignore', post-processing script crashes 
                         # when loading MRR raw file with some missing/corrupt data
-                        allData = open(file, 'r', errors='ignore')
+                        # using codecs.open(... encoding='UTF-8' ...) as this seems to be
+                        # the only method that works in python 2 and 3.
+                        allData = codecs.open(file, 'r', encoding='UTF-8', errors='ignore')
                     except:
                         print("could not open:", file)
                         raise IOError("could not open:" + file)
@@ -2428,6 +2431,14 @@ class mrrRawData:
                 self.mrrRawSpectrum = cdfFile.variables['MRR_Spectra'][:]
                 self.mrrRawNoSpec = cdfFile.variables['MRR_NoSpectra'][:]
 
+                try:
+                    self.timezone = str(cdfFile.variables['MRR time'].timezone)
+                except AttributeError:
+                    # this can occur when loading a file created with an older
+                    # version of IMProToo, before the timezone update.
+                    warnings.warn("timezone attribute missing, assuming UTC")
+                    self.timezone = "UTC"
+
                 cdfFile.close()
 
                 self.shape2D = np.shape(self.mrrRawHeight)
@@ -2496,7 +2507,9 @@ class mrrRawData:
                     try:
                         # without errors='ignore', post-processing script crashes 
                         # when loading MRR raw file with some missing/corrupt data
-                        allData = open(file, 'r', errors='ignore')
+                        # using codecs.open(... encoding='UTF-8' ...) as this seems to be
+                        # the only method that works in python 2 and 3.
+                        allData = codecs.open(file, 'r', encoding='UTF-8', errors='ignore')
                     except:
                         print("could not open:", file)
                         raise IOError("could not open:" + file)
