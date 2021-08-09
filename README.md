@@ -10,6 +10,9 @@ The software can be used under the GPL license
 
 ## What's new?
 
+### 0.106
+* Fixed Python 2.7 file reading and timezone bug (thanks to A. Merrelli)
+
 ### 0.105
 * Fixed Python 3 file reading bug (thanks to M. Bartolini)
 

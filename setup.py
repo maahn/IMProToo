@@ -25,7 +25,7 @@ from setuptools import setup
 if __name__ == "__main__":
     setup(
         name='IMProToo',
-        version='0.105',
+        version='0.106',
         packages=['IMProToo', ],
         license='GNU General Public License 3',
         author="Maximilian Maahn",
