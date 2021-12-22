@@ -44,8 +44,14 @@ import codecs
 
 from .tools import unix2date, date2unix, limitMaInidces, quantile
 from .tools import oneD2twoD, _get_netCDF_module
-__version__ = "0.106"
 
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version("IMProToo")
+except PackageNotFoundError:
+    # package is not installed
+    pass
 
 class MrrZe:
     '''

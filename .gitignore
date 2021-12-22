@@ -10,3 +10,4 @@ IMProToo.egg-info
 build
 dist
 .DS_Store
+.eggs
