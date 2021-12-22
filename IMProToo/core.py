@@ -45,13 +45,26 @@ import codecs
 from .tools import unix2date, date2unix, limitMaInidces, quantile
 from .tools import oneD2twoD, _get_netCDF_module
 
-from importlib.metadata import version, PackageNotFoundError
-
 try:
-    __version__ = version("IMProToo")
-except PackageNotFoundError:
-    # package is not installed
-    pass
+    from importlib.metadata import version, PackageNotFoundError
+    py3 = True
+except ImportError:
+    from pkg_resources import get_distribution, DistributionNotFound
+    py3 = False
+
+if py3:
+    try:
+        __version__ = version("IMProToo")
+    except PackageNotFoundError:
+        # package is not installed
+        pass
+else:
+    try:
+        __version__ = get_distribution("IMProToo").version
+    except DistributionNotFound:
+         # package is not installed
+        pass
+
 
 class MrrZe:
     '''
