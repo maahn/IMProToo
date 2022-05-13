@@ -10,6 +10,9 @@ The software can be used under the GPL license
 
 ## What's new?
 
+### 0.107
+* PyPI release, fixed installation from github archive through setuptools_scm_git_archive
+
 ### 0.106
 * Fixed Python 2.7 file reading and timezone bug (thanks to A. Merrelli)
 
@@ -49,20 +52,11 @@ The following python packages are required:
 
 ## Installation
 
-Change to the folder containing the project and do 
+IMProToo is available on PyPI, so it can be installed with
 ```
-  python setup.py install
+  pip install IMProToo
 ```
-in the terminal. If you do not have user priviliges, you can also do:
-```
-  python setup.py --user install
-```
-which will install IMProToo in userbase/lib/pythonX.Y/site-packages or
-```
-  python setup.py install --home=~
-```
-which will install IMProToo in ~/lib/python.
-
+in the terminal. 
 
 ## How to use
 

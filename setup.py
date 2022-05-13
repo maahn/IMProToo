@@ -41,5 +41,5 @@ if __name__ == "__main__":
             'Topic :: Scientific/Engineering',
         ],
         install_requires=['numpy', 'matplotlib', 'netCDF4', 'scipy'],
-        setup_requires=['setuptools_scm'],
+        setup_requires=['setuptools_scm','setuptools_scm_git_archive'],
     )
