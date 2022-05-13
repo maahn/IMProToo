@@ -21,6 +21,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
 from setuptools import setup
+import io
+# read the contents of your README file
+from os import path
+this_directory = path.abspath(path.dirname(__file__))
+with io.open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
+    long_description = f.read()
+
 
 if __name__ == "__main__":
     setup(
@@ -29,8 +36,8 @@ if __name__ == "__main__":
         packages=['IMProToo', ],
         license='GNU General Public License 3',
         author="Maximilian Maahn",
-        author_email="mmaahn@meteo.uni-koeln.de",
-        long_description=open('README.md').read(),
+        long_description=long_description,
+        long_description_content_type='text/markdown',
         classifiers=[
             "Development Status :: 4 - Beta",
             "Topic :: Utilities",
