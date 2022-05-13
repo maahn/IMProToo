@@ -54,7 +54,7 @@ The following python packages are required:
 
 IMProToo is available on PyPI, so it can be installed with
 ```
-  pip install IMProToo
+pip install IMProToo
 ```
 in the terminal. 
 
@@ -62,39 +62,39 @@ in the terminal.
 
 To use the toolkit, start python and import it:
 ```
-  import IMProToo
+import IMProToo
 ```
 
 read the raw data file (can be gzip-compressed)
 ```
-  rawData = IMProToo.mrrRawData("mrrRawFile.mrr.gz")
+rawData = IMProToo.mrrRawData("mrrRawFile.mrr.gz")
 ```
 
 create the IMProToo object and load rawData
 ```
-  processedSpec = IMProToo.MrrZe(rawData)
+processedSpec = IMProToo.MrrZe(rawData)
 ```
 
 if needed, average rawData to 60s
 ```
-  processedSpec.averageSpectra(60)
+processedSpec.averageSpectra(60)
 ```
 
 all settings (e.g. creator attribute of netCDF file, dealiasing) are available in the 'processedSpec.co' dictionary and must be set before calculating Ze etc. See the source code for a description of the settings.
 ```
-  processedSpec.co["ncCreator"] = "M.Maahn, IGM University of Cologne"
-  processedSpec.co["ncDescription"] = "MRR data from Cologne"
-  processedSpec.co["dealiaseSpectrum"] = True    
+processedSpec.co["ncCreator"] = "M.Maahn, IGM University of Cologne"
+processedSpec.co["ncDescription"] = "MRR data from Cologne"
+processedSpec.co["dealiaseSpectrum"] = True
 ```
 
 calculate Ze and other moments
 ```
-  processedSpec.rawToSnow()
+processedSpec.rawToSnow()
 ```
 
 write all variables to a netCDF file.
 ```
-  processedSpec.writeNetCDF("IMProToo_netCDF_file.nc",ncForm="NETCDF3_CLASSIC")
+processedSpec.writeNetCDF("IMProToo_netCDF_file.nc",ncForm="NETCDF3_CLASSIC")
 ```
 
 
