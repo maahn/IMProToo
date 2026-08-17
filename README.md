@@ -1,6 +1,7 @@
 # IMProToo - Improved Mrr Processing Tool
 
-
+[![Tests](https://github.com/maahn/IMProToo/actions/workflows/tests.yml/badge.svg)](https://github.com/maahn/IMProToo/actions/workflows/tests.yml)
+[![PyPI](https://img.shields.io/pypi/v/IMProToo.svg)](https://pypi.org/project/IMProToo/)
 
 IMProToo is an improved processing method for Micro Rain radar. It is especially suited for snow observations and provides besides other things effective reflectivity, Doppler velocity and spectral width. The method features a noise removal based on recognition of the most significant peak and a dynamic dealiasing routine which allows observations even if the Nyquist velocity range is exceeded. The software requires MRR "raw data", it does not work with Metek's standard products MRR "Averaged Data" or "Processed Data".
 
@@ -9,6 +10,16 @@ Please note that this software was developed for observations at low SNR ratios 
 The software can be used under the GPL license
 
 ## What's new?
+
+### Unreleased
+* Dropped Python 2/legacy-3 compatibility shims, now requires Python 3.10+
+* Fixed installation from a GitHub source archive (e.g. a branch tarball,
+  not just a release tag) on modern setuptools_scm
+* Removed the long-broken/unmaintained Scientific.IO.NetCDF and netCDF3
+  fallback; netCDF4-python is used for all supported netCDF formats
+* Added an automated test suite and CI (GitHub Actions) covering Python
+  3.10-3.14
+* PyPI releases now use Trusted Publishing (no more long-lived API token)
 
 ### 0.107
 * PyPI release, fixed installation from github archive through setuptools_scm_git_archive
@@ -42,13 +53,13 @@ Please quote the article if you use the routine for your publication.
 
 ## How to install
 
-The software is developed for python 2.7 or 3.6+ and should run on any recent Linux system (and most likely also Mac OS X). Windows is currently not supported, but probably only minor changes are necessary.
+The software requires Python 3.10+ and should run on any recent Linux system (and most likely also Mac OS X). Windows is currently not supported, but probably only minor changes are necessary.
 
 The following python packages are required:
   * numpy
   * scipy
   * matplotlib (for plotting only)
-  * netcdf4-python http://code.google.com/p/netcdf4-python/ OR python-netcdf (for saving the results only)
+  * [netCDF4](https://github.com/Unidata/netcdf4-python) (for saving the results only)
 
 ## Installation
 
@@ -97,6 +108,14 @@ write all variables to a netCDF file.
 processedSpec.writeNetCDF("IMProToo_netCDF_file.nc",ncForm="NETCDF3_CLASSIC")
 ```
 
+
+## Development
+
+To run the test suite locally:
+```
+pip install -e ".[test]"
+pytest tests/
+```
 
 ## Questions
 In case of any questions, please don't hesitate to contact Maximilian Maahn: maximilian [dot] maahn [at] uni [dash] leipzig [dot] de

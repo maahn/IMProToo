@@ -31,9 +31,6 @@ IMProTooTools: various helper functions
 
 
 '''
-from __future__ import division
-from __future__ import print_function
-
 import numpy as np
 import time
 import datetime
@@ -134,7 +131,9 @@ def unix2date(unix):
     converts seconds since 01-01-1970 to datetime object
     '''
 
-    return datetime.datetime.utcfromtimestamp(unix)
+    return datetime.datetime.fromtimestamp(
+        unix, datetime.timezone.utc
+    ).replace(tzinfo=None)
 
 
 def quantile(x, q,  qtype=7, issorted=False):
@@ -230,27 +229,25 @@ def limitMaInidces(iArray, max):
 
 def _get_netCDF_module(ncForm="NETCDF3"):
     '''
-    helper function to determine which netCDF module is loaded, to enable 
+    helper function to determine which netCDF module is loaded, to enable
     consistency between the various writeNetCDF methods.
 
-    Returns both 'nc' (the netCDF module) and 'pyNC', a bool variable which 
-    controls how some attribute data is set, and how to create the netCDF file 
+    Returns both 'nc' (the netCDF module) and 'pyNC', a bool variable which
+    controls how some attribute data is set, and how to create the netCDF file
     (since the function is different in the various netCDF modules.)
     '''
 
-    # most syntax is identical, but there is one nasty difference regarding the fillValue...
+    # "NETCDF3" is a legacy alias kept for backwards compatibility; it used to
+    # select the long-unmaintained Scientific.IO.NetCDF/netCDF3 packages,
+    # which are not installable on modern Python. netCDF4-python writes
+    # NETCDF3_CLASSIC just fine, so it is used for all supported formats.
+    if ncForm == "NETCDF3":
+        ncForm = "NETCDF3_CLASSIC"
+
     if ncForm in ["NETCDF3_CLASSIC", "NETCDF3_64BIT", "NETCDF4_CLASSIC", "NETCDF4"]:
         import netCDF4 as nc
         pyNc = True
-    elif ncForm in ["NETCDF3"]:
-        try:
-            import Scientific.IO.NetCDF as nc
-            pyNc = False
-        except:
-            # fallback for netcdf3 with the same syntax as netcdf4!
-            import netCDF3 as nc
-            pyNc = True
-        else:
-            raise ValueError("Unknown nc form "+ncForm)
+    else:
+        raise ValueError("Unknown nc form "+ncForm)
 
     return nc, pyNc

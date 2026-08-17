@@ -3,8 +3,6 @@
 IMProToo
 Improved MRR Processing Tool
 """
-from __future__ import division
-
 
 from .core import *
 from .core import __version__

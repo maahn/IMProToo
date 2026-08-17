@@ -26,9 +26,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
 
-from __future__ import division
-from __future__ import print_function
-
 import numpy as np
 import gzip
 import re
@@ -45,25 +42,13 @@ import codecs
 from .tools import unix2date, date2unix, limitMaInidces, quantile
 from .tools import oneD2twoD, _get_netCDF_module
 
-try:
-    from importlib.metadata import version, PackageNotFoundError
-    py3 = True
-except ImportError:
-    from pkg_resources import get_distribution, DistributionNotFound
-    py3 = False
+from importlib.metadata import version, PackageNotFoundError
 
-if py3:
-    try:
-        __version__ = version("IMProToo")
-    except PackageNotFoundError:
-        # package is not installed
-        pass
-else:
-    try:
-        __version__ = get_distribution("IMProToo").version
-    except DistributionNotFound:
-         # package is not installed
-        pass
+try:
+    __version__ = version("IMProToo")
+except PackageNotFoundError:
+    # package is not installed
+    pass
 
 
 class MrrZe:
@@ -1595,7 +1580,7 @@ class MrrZe:
 
         fname: str filename with path
         varsToSave list of variables of the profile to be saved. "all" saves all implmented ones
-        ncForm: str netcdf file format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package, NETCDF3 takes the "old" Scientific.IO.NetCDF module, which is a bit more convinient to install or as fall back option python-netcdf3
+        ncForm: str netcdf file format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package. NETCDF3 is a legacy alias for NETCDF3_CLASSIC
         '''
 
         nc, pyNc = _get_netCDF_module(ncForm=ncForm)
@@ -1617,7 +1602,7 @@ class MrrZe:
         cdfFile.location = self.co["ncLocation"]
         cdfFile.history = 'Created with IMProToo v' + __version__
         cdfFile.author = 'Max Maahn'
-        cdfFile.processing_date = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        cdfFile.processing_date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         cdfFile.reference = 'Maahn, M. and Kollias, P., 2012: Improved Micro Rain Radar snow measurements using Doppler spectra post-processing, Atmos. Meas. Tech., 5, 2661-2673, doi:10.5194/amt-5-2661-2012. '
 
         cdfFile.properties = str(self.co)
@@ -2261,7 +2246,7 @@ class mrrProcessedData:
         @parameter author (str): Author for netCDF meta data (default:IMProToo)
         @parameter location (str): Location of instrument for NetCDF Metadata (default: "")
         @parameter institution (str): Institution to whom the instrument belongs (default: "")
-        @parameter ncForm (str): netCDF Format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package, NETCDF3 takes the "old" Scientific.IO.NetCDF module, which is a bit more convinient to install or as fall back option python-netcdf3
+        @parameter ncForm (str): netCDF Format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package. NETCDF3 is a legacy alias for NETCDF3_CLASSIC
 
         '''
 
@@ -2281,7 +2266,7 @@ class mrrProcessedData:
         # Attributes
         cdfFile.history = 'Created with IMProToo v' + __version__
         cdfFile.author = 'Max Maahn'
-        cdfFile.processing_date = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        cdfFile.processing_date = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         cdfFile.reference = 'Maahn, M. and Kollias, P., 2012: Improved Micro Rain Radar snow measurements using Doppler spectra post-processing, Atmos. Meas. Tech., 5, 2661-2673, doi:10.5194/amt-5-2661-2012. '
         cdfFile.title = 'Micro rain radar averaged data (Metek standard output) converted to netcdf'
         cdfFile.comment = 'This data is only valid in case of liquid precipitation. Note that this data has been processed regardless of precipitation type and additional external information about precipitation type is needed for correct interpretation of the measurements.'
@@ -2778,7 +2763,7 @@ class mrrRawData:
         @parameter fileOut (str): netCDF file name
         @parameter author (str): Author for netCDF meta data (default:IMProToo)
         @parameter description (str): Description for NetCDF Metadata (default: empty)
-        @parameter netcdfFormat (str): netcdf format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package, NETCDF3 takes the "old" Scientific.IO.NetCDF module, which is a bit more convinient to install or as fall back option python-netcdf3
+        @parameter netcdfFormat (str): netcdf format, possible values are NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4 for the python-netcdf4 package. NETCDF3 is a legacy alias for NETCDF3_CLASSIC
         '''
 
         nc, pyNc = _get_netCDF_module(ncForm=ncForm)
